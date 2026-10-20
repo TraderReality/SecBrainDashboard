@@ -24,6 +24,7 @@ Keine Zugangsdaten oder Schlüssel in diese Datei schreiben.
 
 ## Folgen für SecBrainDashboard
 - Docker ist verfügbar, das Dashboard kann als Container auf dem NAS laufen.
-- Eigenen freien Port wählen (nicht 8000, 8010, 8011, 5000, 5001).
+- Die alten Systeme (SecDash, Paperless usw.) waren Entwicklungsumgebungen. Es wird jetzt genau ein System frisch aufgesetzt.
+- Es werden keine neuen Ports freigegeben. Welcher bereits offene Port genutzt wird, ist noch festzulegen, damit es keine Kollision gibt.
+- Parallel setzt ein anderer Assistent (ChatGPT) das alte lokale Dashboard auf dem NAS auf. Vor dem Deployment Container und Ports auf dem NAS prüfen (`sudo -n /usr/local/bin/docker ps`), nichts überschreiben.
 - Neues Verzeichnis unter `/volume1/docker/` anlegen, Berechtigungen vorab prüfen (ACL-Problem).
-- Das alte Projekt SecDash wird nicht berücksichtigt; seine Container nicht anfassen.

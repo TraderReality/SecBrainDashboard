@@ -13,6 +13,7 @@ Am Ende jeder Session aktualisieren.
 - NAS ist eine Synology DS1821+ mit Docker, Details in `docs/nas.md`.
 
 ## Offene Fragen
+- Welcher bereits offene Port wird genutzt, und wie grenzt sich das Deployment von dem ab, was ChatGPT gerade auf dem NAS aufsetzt?
 - Ordnerstruktur und Konventionen des Vaults (Markdown-Dateien, z. B. Frontmatter, Tags).
 - Später: mobiler Zugriff von unterwegs (VPN ins Heimnetz o. Ä.).
 
