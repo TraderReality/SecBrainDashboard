@@ -12,6 +12,11 @@ Anforderungen:
 - Auf allen Geräten (MacBook, KI-Server, Handy) derselbe Datenstand, ohne Unterschiede.
   Das muss bei der Wahl des Tech-Stacks (zentrale Datenhaltung, mobile Nutzbarkeit) berücksichtigt werden.
 
+Betrieb:
+- Das Dashboard wird auf dem NAS im Heimnetzwerk aufgebaut und betrieben.
+- Auf dem NAS liegt ein Vault, das Second Brain des Projekts.
+- Cloud-Sessions haben keinen Zugriff auf das NAS. Format und Inhalt des Vaults sind hier nicht bekannt und dürfen nicht angenommen werden.
+
 Weitere Details und Status siehe `README.md`.
 
 ## Struktur
