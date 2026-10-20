@@ -1,0 +1,30 @@
+# Betriebssystem- und Editor-Dateien
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Geheimnisse und lokale Konfiguration
+.env
+.env.*
+!.env.example
+*.local.json
+
+# Abhängigkeiten
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Build-Ausgaben
+dist/
+build/
+out/
+coverage/
+*.log
+
+# Temporäre Dateien
+tmp/
+.cache/
