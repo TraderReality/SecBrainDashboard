@@ -5,8 +5,10 @@ Am Ende jeder Session aktualisieren.
 
 ## Stand
 - Grundgerüst steht (README, Ordnerstruktur).
+- Zweck und Anforderungen sind in README.md und CLAUDE.md beschrieben.
 - Noch kein Anwendungscode, Tech-Stack nicht festgelegt.
 
 ## Nächste Schritte
-- Tech-Stack festlegen und in `docs/entscheidungen.md` eintragen.
+- Festlegen, welche Alltagsbereiche das Dashboard zuerst abdecken soll.
+- Tech-Stack festlegen (zentrale Datenhaltung für identischen Stand auf allen Geräten, mobil nutzbar) und in `docs/entscheidungen.md` eintragen.
 - Startbefehl und Voraussetzungen in der README ergänzen.

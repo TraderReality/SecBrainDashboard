@@ -4,7 +4,15 @@ Gemeinsamer Kontext für alle Claude-Sessions auf allen Geräten
 (MacBook, KI-Server, Handy, Cloud).
 
 ## Zweck
-SecBrainDashboard: Zweck, Zielgruppe und Status siehe `README.md` (noch Platzhalter).
+Eigenes Dashboard, das alles Alltägliche an einem Ort bündelt.
+Bestehende Programme sind zu starr, man muss Werte in vielen Tools nachschlagen.
+
+Anforderungen:
+- Die Übersicht ist frei gestaltbar (Anordnung und Inhalte bestimmt der Nutzer).
+- Auf allen Geräten (MacBook, KI-Server, Handy) derselbe Datenstand, ohne Unterschiede.
+  Das muss bei der Wahl des Tech-Stacks (zentrale Datenhaltung, mobile Nutzbarkeit) berücksichtigt werden.
+
+Weitere Details und Status siehe `README.md`.
 
 ## Struktur
 - `src/` Anwendungscode

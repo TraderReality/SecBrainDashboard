@@ -1,8 +1,14 @@
 # SecBrainDashboard
 
-Kurzbeschreibung des Projekts.
+Ein eigenes Dashboard, das alles bündelt, was im Alltag zu erledigen ist.
 
-> Platzhalter: Zweck, Zielgruppe und Status des Dashboards hier beschreiben.
+## Zweck
+
+- Alles Alltägliche an einem Ort, statt Werte in vielen getrennten Programmen nachzuschlagen.
+- Die Übersicht ist frei gestaltbar: Ich bestimme selbst, was wo angezeigt wird.
+- Gleicher Stand auf allen Geräten (MacBook, KI-Server, Handy), ohne Unterschiede.
+
+Status: Konzeptphase, Tech-Stack noch nicht festgelegt.
 
 ## Projektstruktur
 
