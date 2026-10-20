@@ -18,6 +18,8 @@ Betrieb:
 - Cloud-Sessions haben keinen Zugriff auf das NAS. Der neue Vault besteht aus Markdown-Dateien. Ordnerstruktur und Konventionen sind noch nicht festgelegt und dürfen nicht angenommen werden.
 - Erste Ausbaustufe nur im Heimnetz, mobiler Zugriff von unterwegs kommt später.
 
+NAS-Details (Synology DS1821+, Docker, Stolpersteine): `docs/nas.md`.
+
 Weitere Details und Status siehe `README.md`.
 
 ## Struktur

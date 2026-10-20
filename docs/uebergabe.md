@@ -10,9 +10,10 @@ Am Ende jeder Session aktualisieren.
 
 - Betrieb auf dem NAS im Heimnetz. Dort wird ein neuer Vault aufgesetzt (kein Bezug zum alten SecVault).
 
+- NAS ist eine Synology DS1821+ mit Docker, Details in `docs/nas.md`.
+
 ## Offene Fragen
 - Ordnerstruktur und Konventionen des Vaults (Markdown-Dateien, z. B. Frontmatter, Tags).
-- NAS-Modell und ob dort Docker läuft (wird vom Nutzer herausgesucht).
 - Später: mobiler Zugriff von unterwegs (VPN ins Heimnetz o. Ä.).
 
 ## Nächste Schritte
