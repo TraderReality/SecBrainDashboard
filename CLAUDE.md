@@ -4,8 +4,7 @@ Gemeinsamer Kontext für alle Claude-Sessions auf allen Geräten
 (MacBook, KI-Server, Handy, Cloud).
 
 ## Zweck
-SecBrainDashboard ist ein Dashboard rund um den SecBrain-Vault.
-Details zum Zweck, zur Zielgruppe und zum Status: siehe `README.md`.
+SecBrainDashboard: Zweck, Zielgruppe und Status siehe `README.md` (noch Platzhalter).
 
 ## Struktur
 - `src/` Anwendungscode
