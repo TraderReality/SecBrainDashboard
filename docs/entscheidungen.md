@@ -10,4 +10,5 @@ Chatverläufe lokaler Sessions werden nicht synchronisiert, deshalb gilt:
 
 ## 2026-10-20: Betrieb auf dem NAS
 Das Dashboard wird auf dem NAS im Heimnetzwerk betrieben. Dort wird ein neuer Vault als Second Brain des Projekts aufgesetzt. Das alte Projekt SecVault wird bewusst nicht berücksichtigt.
-Folge: Zugriff vom Handy außerhalb des Heimnetzes braucht einen sicheren Weg ins Heimnetz (offen, siehe `docs/uebergabe.md`).
+Der Vault besteht aus Markdown-Dateien.
+Zugriff zunächst nur im Heimnetz, mobiler Zugriff von unterwegs (sicherer Weg ins Heimnetz) kommt später.

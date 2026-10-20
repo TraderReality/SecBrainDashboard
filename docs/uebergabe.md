@@ -11,9 +11,9 @@ Am Ende jeder Session aktualisieren.
 - Betrieb auf dem NAS im Heimnetz. Dort wird ein neuer Vault aufgesetzt (kein Bezug zum alten SecVault).
 
 ## Offene Fragen
-- Aufbau des neuen Vaults (Format, Ordnerstruktur) und wie das Dashboard darauf zugreifen soll.
-- Zugriff vom Handy unterwegs: VPN ins Heimnetz oder anderer sicherer Weg.
-- NAS-Modell und ob dort Docker läuft.
+- Ordnerstruktur und Konventionen des Vaults (Markdown-Dateien, z. B. Frontmatter, Tags).
+- NAS-Modell und ob dort Docker läuft (wird vom Nutzer herausgesucht).
+- Später: mobiler Zugriff von unterwegs (VPN ins Heimnetz o. Ä.).
 
 ## Nächste Schritte
 - Festlegen, welche Alltagsbereiche das Dashboard zuerst abdecken soll.

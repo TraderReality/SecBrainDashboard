@@ -15,7 +15,8 @@ Anforderungen:
 Betrieb:
 - Das Dashboard wird auf dem NAS im Heimnetzwerk aufgebaut und betrieben.
 - Auf dem NAS wird ein neuer Vault als Second Brain des Projekts aufgesetzt. Er hat nichts mit dem alten Projekt SecVault zu tun; dessen Stand wird bewusst nicht berücksichtigt.
-- Cloud-Sessions haben keinen Zugriff auf das NAS. Der neue Vault existiert noch nicht, sein Format wird erst festgelegt und darf nicht angenommen werden.
+- Cloud-Sessions haben keinen Zugriff auf das NAS. Der neue Vault besteht aus Markdown-Dateien. Ordnerstruktur und Konventionen sind noch nicht festgelegt und dürfen nicht angenommen werden.
+- Erste Ausbaustufe nur im Heimnetz, mobiler Zugriff von unterwegs kommt später.
 
 Weitere Details und Status siehe `README.md`.
 
