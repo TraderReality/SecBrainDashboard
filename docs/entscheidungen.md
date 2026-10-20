@@ -9,5 +9,5 @@ Chatverläufe lokaler Sessions werden nicht synchronisiert, deshalb gilt:
 `CLAUDE.md` und `docs/` tragen den gemeinsamen Kontext.
 
 ## 2026-10-20: Betrieb auf dem NAS
-Das Dashboard wird auf dem NAS im Heimnetzwerk betrieben. Dort liegt auch der Vault (Second Brain des Projekts).
+Das Dashboard wird auf dem NAS im Heimnetzwerk betrieben. Dort wird ein neuer Vault als Second Brain des Projekts aufgesetzt. Das alte Projekt SecVault wird bewusst nicht berücksichtigt.
 Folge: Zugriff vom Handy außerhalb des Heimnetzes braucht einen sicheren Weg ins Heimnetz (offen, siehe `docs/uebergabe.md`).

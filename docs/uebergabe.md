@@ -8,10 +8,10 @@ Am Ende jeder Session aktualisieren.
 - Zweck und Anforderungen sind in README.md und CLAUDE.md beschrieben.
 - Noch kein Anwendungscode, Tech-Stack nicht festgelegt.
 
-- Betrieb auf dem NAS im Heimnetz, dort liegt auch der Vault.
+- Betrieb auf dem NAS im Heimnetz. Dort wird ein neuer Vault aufgesetzt (kein Bezug zum alten SecVault).
 
 ## Offene Fragen
-- Aufbau des Vaults (Format, Ordnerstruktur) und wie das Dashboard darauf zugreifen soll.
+- Aufbau des neuen Vaults (Format, Ordnerstruktur) und wie das Dashboard darauf zugreifen soll.
 - Zugriff vom Handy unterwegs: VPN ins Heimnetz oder anderer sicherer Weg.
 - NAS-Modell und ob dort Docker läuft.
 

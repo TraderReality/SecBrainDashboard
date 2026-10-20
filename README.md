@@ -8,7 +8,7 @@ Ein eigenes Dashboard, das alles bündelt, was im Alltag zu erledigen ist.
 - Die Übersicht ist frei gestaltbar: Ich bestimme selbst, was wo angezeigt wird.
 - Gleicher Stand auf allen Geräten (MacBook, KI-Server, Handy), ohne Unterschiede.
 
-Betrieb: Das Dashboard läuft auf dem NAS im Heimnetzwerk. Auf dem NAS liegt auch der Vault, das Second Brain des Projekts.
+Betrieb: Das Dashboard läuft auf dem NAS im Heimnetzwerk. Auf dem NAS wird ein neuer Vault als Second Brain des Projekts aufgesetzt (unabhängig vom alten Projekt SecVault).
 
 Status: Konzeptphase, Tech-Stack noch nicht festgelegt.
 
