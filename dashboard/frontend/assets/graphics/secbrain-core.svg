@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 512 512"
+     fill="none">
+
+
+<defs>
+
+<filter id="glow"
+        x="-50%"
+        y="-50%"
+        width="200%"
+        height="200%">
+
+    <feGaussianBlur
+        stdDeviation="14"
+        result="blur"/>
+
+</filter>
+
+
+<linearGradient id="core"
+                x1="0"
+                y1="0"
+                x2="1"
+                y2="1">
+
+    <stop offset="0%"
+          stop-color="#8b5cff"/>
+
+    <stop offset="100%"
+          stop-color="#3f20d9"/>
+
+</linearGradient>
+
+</defs>
+
+
+
+<!-- outer glow -->
+
+<path
+d="
+M256 35
+C130 35 45 135 70 260
+C90 360 170 450 256 480
+C342 450 422 360 442 260
+C467 135 382 35 256 35Z
+"
+stroke="#5c2cff"
+stroke-width="24"
+opacity="0.45"
+filter="url(#glow)"
+/>
+
+
+
+<!-- brain silhouette -->
+
+<path
+d="
+M256 70
+
+C210 45 140 65 110 120
+
+C70 195 115 255 155 300
+
+C170 325 165 385 220 430
+
+C240 445 272 445 292 430
+
+C347 385 342 325 357 300
+
+C397 255 442 195 402 120
+
+C372 65 302 45 256 70Z
+"
+fill="url(#core)"
+stroke="#865cff"
+stroke-width="10"
+/>
+
+
+
+<!-- neural circuit -->
+
+<g
+stroke="#ffffff"
+stroke-width="10"
+stroke-linecap="round"
+stroke-linejoin="round">
+
+
+<path d="M180 150 L230 210 L180 275"/>
+
+<path d="M332 150 L282 210 L332 275"/>
+
+<path d="M256 115 V390"/>
+
+<path d="M140 220 H220"/>
+
+<path d="M292 220 H372"/>
+
+<path d="M200 335 L256 285 L312 335"/>
+
+
+</g>
+
+
+
+<!-- nodes -->
+
+<g fill="#ffffff">
+
+<circle cx="180" cy="150" r="16"/>
+<circle cx="230" cy="210" r="16"/>
+<circle cx="180" cy="275" r="16"/>
+
+<circle cx="332" cy="150" r="16"/>
+<circle cx="282" cy="210" r="16"/>
+<circle cx="332" cy="275" r="16"/>
+
+<circle cx="256" cy="115" r="16"/>
+<circle cx="256" cy="390" r="16"/>
+
+</g>
+
+
+
+<!-- center core -->
+
+<circle
+cx="256"
+cy="256"
+r="34"
+fill="#ffffff"/>
+
+
+<circle
+cx="256"
+cy="256"
+r="18"
+fill="#865cff"/>
+
+
+
+</svg>

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=SECBrain Watcher
+Comment=SECBrain Watcher auf dem Synology NAS
+Exec="@PROJECT_ROOT@/scripts/start-secbrain-watcher.sh"
+Path=@PROJECT_ROOT@
+Icon=@PROJECT_ROOT@/dashboard/frontend/assets/graphics/secbrain-core.svg
+Terminal=false
+Categories=Development;
+Keywords=SecBrain;Watcher;Vault;Ollama;Dashboard;
+StartupNotify=true
+StartupWMClass=SECBrain Watcher

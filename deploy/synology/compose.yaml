@@ -1,0 +1,66 @@
+name: secbrain-dashboard
+
+x-watcher-common: &watcher-common
+  build:
+    context: ../..
+    dockerfile: deploy/synology/Dockerfile
+  restart: unless-stopped
+  read_only: true
+  mem_limit: 768m
+  cpu_shares: 512
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:size=256m,mode=1777
+  healthcheck:
+    interval: 30s
+    timeout: 5s
+    start_period: 60s
+    retries: 3
+
+services:
+  main:
+    <<: *watcher-common
+    image: "secbrain-dashboard:${SECBRAIN_IMAGE_TAG:-dev}"
+    profiles: ["main"]
+    user: "${SECBRAIN_UID}:${SECBRAIN_GID}"
+    environment:
+      XDG_CACHE_HOME: /state/qmd-cache
+      XDG_CONFIG_HOME: /state/qmd-config
+      SECBRAIN_VAULT_PATH: /vault
+      SECBRAIN_WATCHER_REPOSITORY: /source
+      SECBRAIN_WATCHER_STATE_DIR: /state
+      SECBRAIN_OLLAMA_URL: "${SECBRAIN_OLLAMA_URL}"
+      SECBRAIN_OBSERVER_MODEL: "${SECBRAIN_OBSERVER_MODEL}"
+      SECBRAIN_QMD_BINARY: /usr/local/bin/qmd
+      SECBRAIN_QMD_COLLECTION: "${SECBRAIN_MAIN_QMD_COLLECTION:-secbrain-main}"
+    ports:
+      - "${SECBRAIN_MAIN_BIND:-127.0.0.1}:${SECBRAIN_MAIN_PORT:-8080}:8080"
+    volumes:
+      - "${SECBRAIN_MAIN_VAULT}:/vault"
+      - "../..:/source:ro"
+      - "${SECBRAIN_MAIN_STATE}:/state"
+
+  dev:
+    <<: *watcher-common
+    image: "secbrain-dashboard:${SECBRAIN_IMAGE_TAG:-dev}"
+    profiles: ["dev"]
+    user: "${SECBRAIN_UID}:${SECBRAIN_GID}"
+    environment:
+      XDG_CACHE_HOME: /state/qmd-cache
+      XDG_CONFIG_HOME: /state/qmd-config
+      SECBRAIN_VAULT_PATH: /vault
+      SECBRAIN_WATCHER_REPOSITORY: /source
+      SECBRAIN_WATCHER_STATE_DIR: /state
+      SECBRAIN_OLLAMA_URL: "${SECBRAIN_OLLAMA_URL}"
+      SECBRAIN_OBSERVER_MODEL: "${SECBRAIN_OBSERVER_MODEL}"
+      SECBRAIN_QMD_BINARY: /usr/local/bin/qmd
+      SECBRAIN_QMD_COLLECTION: "${SECBRAIN_DEV_QMD_COLLECTION:-secbrain-dev}"
+    ports:
+      - "${SECBRAIN_DEV_BIND:-127.0.0.1}:${SECBRAIN_DEV_PORT:-8011}:8080"
+    volumes:
+      - "${SECBRAIN_DEV_VAULT}:/vault"
+      - "../..:/source:ro"
+      - "${SECBRAIN_DEV_STATE}:/state"

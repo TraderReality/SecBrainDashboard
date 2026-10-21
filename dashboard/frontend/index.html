@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>SECBrain Watcher</title>
+
+<link rel="stylesheet" href="style.css?v=model-footer-1">
+</head>
+
+
+<body>
+
+
+<div class="app">
+
+
+<button id="sidebar-toggle" class="sidebar-toggle-btn" type="button" aria-label="Menü ein-/ausklappen" aria-expanded="false" aria-controls="app-sidebar">
+<span id="sidebar-toggle-icon" aria-hidden="true">▸</span>
+</button>
+
+
+
+<aside class="sidebar" id="app-sidebar">
+
+<h3>ÜBERSICHT</h3>
+
+<div class="menu active" data-view="dashboard">
+<span class="menu-icon" aria-hidden="true">▦</span><span class="menu-label">Dashboard</span>
+</div>
+
+<div class="menu" data-view="vault-explorer">
+<span class="menu-icon" aria-hidden="true">▣</span><span class="menu-label">Vault Explorer</span>
+</div>
+
+<div class="menu" data-view="regelwerk-explorer">
+<span class="menu-icon" aria-hidden="true">▤</span><span class="menu-label">Regelwerk Explorer</span>
+</div>
+
+<div class="menu" data-view="knowledge-radar">
+<span class="menu-icon" aria-hidden="true">⌁</span><span class="menu-label">Wissensradar</span>
+</div>
+
+<div class="menu">
+<span class="menu-icon" aria-hidden="true">🧩</span><span class="menu-label">Skill Explorer</span>
+</div>
+
+<div class="menu">
+<span class="menu-icon" aria-hidden="true">▤</span><span class="menu-label">Reports</span>
+</div>
+
+
+
+<h3>DETAILS</h3>
+
+<div class="menu">
+<span class="menu-icon" aria-hidden="true">⚙</span><span class="menu-label">Skills & Fähigkeiten</span>
+</div>
+
+<div class="menu">
+<span class="menu-icon" aria-hidden="true">⇄</span><span class="menu-label">Abhängigkeiten</span>
+</div>
+
+
+<h3>WERKZEUGE</h3>
+
+<div class="menu">
+<span class="menu-icon" aria-hidden="true">⌕</span><span class="menu-label">Scanner</span>
+</div>
+
+<div class="menu">
+<span class="menu-icon" aria-hidden="true">✓</span><span class="menu-label">Validierung</span>
+</div>
+
+<div class="menu">
+<span class="menu-icon" aria-hidden="true">▥</span><span class="menu-label">Statistiken</span>
+</div>
+
+<div class="menu">
+<span class="menu-icon" aria-hidden="true">⚙</span><span class="menu-label">Einstellungen</span>
+</div>
+
+
+</aside>
+
+<div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+
+
+
+<main class="content">
+
+
+<div id="dashboard-view" class="app-view">
+
+<section class="workspace">
+
+
+<div class="panel loop-panel">
+
+
+<h2>
+KI-Pflege-Loop – 12 Stationen
+</h2>
+
+<aside class="loop-chat-panel" aria-label="SECBrain Chat">
+<div id="ollama-chat-dock" class="ollama-chat-dock">
+<p class="ollama-chat-empty">Lokaler Chat wird geladen …</p>
+</div>
+</aside>
+
+
+<div class="circular-loop">
+
+
+
+<div id="loop-svg-container">
+
+</div>
+
+
+</div>
+
+
+<aside class="loop-runtime-panel" aria-label="Loop Steuerung und Ausgabe">
+<div class="station-runtime-activity" aria-live="polite">
+<div class="runtime-output-section">
+<div class="station-runtime-heading">
+<h4>Vollständige Ausgabe</h4>
+<button id="runtime-output-copy" type="button">Kopieren</button>
+</div>
+<pre id="runtime-output" class="runtime-output" tabindex="0">Noch keine Stationsausgabe vorhanden.</pre>
+</div>
+<div class="runtime-workflow-controls">
+<div class="station-runtime-heading">
+<h4>Autonomer Loop</h4>
+<span id="workflow-state" class="runtime-state">RUHT</span>
+</div>
+<label for="workflow-goal">Aufgabe für alle 12 Stationen</label>
+<textarea id="workflow-goal" rows="2" placeholder="z. B. Prüfe die Markdown-Dateien in 01 Inbox und erstelle einen Einpflegevorschlag."></textarea>
+<label for="workflow-author">Urheber der Inbox-Quelle</label>
+<input id="workflow-author" type="text" maxlength="120" placeholder="z. B. Julian Ivanov (nur bestätigte Herkunft)">
+<div class="runtime-workflow-buttons">
+<button id="workflow-start" type="button">Autonomen Lauf starten</button>
+<button id="workflow-stop" type="button" class="secondary">Anhalten</button>
+<button id="workflow-approve" type="button" hidden>Vorschlag freigeben</button>
+<button id="workflow-reject" type="button" class="secondary" hidden>Ablehnen</button>
+</div>
+<small id="workflow-status">Station 01–05 analysieren die echte Inbox; Station 06 wartet auf deine Freigabe.</small>
+</div>
+</div>
+</aside>
+
+</div>
+
+<div class="panel details-panel" id="station-details-panel">
+
+
+<div class="details-box">
+
+<div class="station-detail-heading">
+<span id="station-number" class="station-detail-number">01</span>
+<h3 id="station-title">Erfassen</h3>
+<span id="station-status" class="status-pill">AKTIV</span>
+</div>
+
+<p id="station-description">Neue Informationen werden erfasst.</p>
+
+<hr>
+
+<div class="station-rule-source">
+<h4>Regelquelle</h4>
+
+<div class="markdown-rule-card">
+<div class="markdown-rule-icon">▤</div>
+<div>
+<strong id="station-rule-file">AGENTS.md</strong>
+<small id="station-rule-section">§ 2 · Der Pflege-Loop</small>
+</div>
+<span class="markdown-rule-type" id="markdown-rule-badge" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="markdown-editor-modal">Markdown</span>
+</div>
+</div>
+
+<div class="station-rule-content">
+<h4>Verbindliche Regel</h4>
+<p id="station-rule-text">Die Stationen geben den Takt vor. Jeder Schritt ist einzeln abbrechbar und setzt beim letzten gültigen Stand fort.</p>
+</div>
+
+<div class="station-guardian-rule">
+<h4>Zusätzliche Wächterregel</h4>
+
+<div class="markdown-rule-card guardian-rule-card">
+<div class="markdown-rule-icon">◈</div>
+<div>
+<strong id="guardian-rule-file">guardian_rules.md</strong>
+<small id="guardian-rule-section">Wird geladen …</small>
+</div>
+<span class="markdown-rule-type guardian-rule-type">KI</span>
+</div>
+
+<p id="guardian-rule-text">Die zusätzliche Regel wird für diese Station geladen.</p>
+</div>
+
+<div class="station-next-step" style="display:none;">
+<span>Nächste Station</span>
+<strong id="station-next-step">02 Analysieren</strong>
+</div>
+
+</div>
+
+
+</div>
+
+<div id="details-backdrop" class="sidebar-backdrop"></div>
+
+<button id="details-toggle" class="details-toggle-btn" type="button" aria-label="Station Details ein-/ausklappen" aria-expanded="false" aria-controls="station-details-panel">
+<span id="details-toggle-icon" aria-hidden="true">◂</span>
+</button>
+
+
+
+</section>
+
+
+
+</div>
+
+
+<section id="vault-explorer-view" class="app-view vault-explorer-view" hidden>
+
+<section class="graph-metrics" aria-label="Graph Kennzahlen">
+<div style="display:none;"><span>Knoten</span><strong id="graph-node-count">–</strong></div>
+<div style="display:none;"><span>Verbindungen</span><strong id="graph-edge-count">–</strong></div>
+<div><span>Cluster</span><strong id="graph-cluster-count">–</strong></div>
+<div><span>Indexer-Stand</span><strong id="graph-updated-at">–</strong></div>
+<div class="graph-search-card">
+<label for="graph-search">Graph durchsuchen</label>
+<input id="graph-search" type="search" placeholder="Titel, Cluster oder Kennung">
+</div>
+<div class="graph-action-card">
+<span id="graph-source-status" class="graph-source-status">Indexer wird geprüft …</span>
+<div class="graph-action-buttons">
+<button id="graph-reset" type="button">Ansicht zurücksetzen</button>
+<button id="graph-refresh" type="button">Graph aktualisieren</button>
+</div>
+</div>
+</section>
+
+<section class="graph-workspace">
+<div class="panel graph-panel">
+<div id="vault-graph-canvas" class="vault-graph-canvas" aria-label="Interaktiver SecBrain Wissensgraph"></div>
+</div>
+
+<aside class="panel graph-details" id="graph-details-panel" aria-live="polite">
+<span class="eyebrow">Ausgewählter Knoten</span>
+<h2 id="graph-node-title">Knoten auswählen</h2>
+<dl id="graph-node-details">
+<div><dt>Hinweis</dt><dd>Klicke im Graphen auf einen Knoten, um seine Indexdaten und Verbindungen zu sehen.</dd></div>
+</dl>
+</aside>
+
+<div id="graph-details-backdrop" class="sidebar-backdrop"></div>
+
+<button id="graph-details-toggle" class="details-toggle-btn" type="button" aria-label="Knotendetails ein-/ausklappen" aria-expanded="false" aria-controls="graph-details-panel">
+<span id="graph-details-toggle-icon" aria-hidden="true">◂</span>
+</button>
+
+</section>
+
+</section>
+
+
+<section id="regelwerk-explorer-view" class="app-view" hidden>
+
+</section>
+
+<section id="knowledge-radar-view" class="app-view knowledge-radar-view" hidden>
+<div class="knowledge-radar-metrics" aria-label="Wissensradar Kennzahlen">
+<div><span>Analysierte Seiten</span><strong id="radar-document-count">–</strong></div>
+<div><span>Themenbereiche</span><strong id="radar-topic-count">–</strong></div>
+<div><span>Kandidaten</span><strong id="radar-candidate-count">–</strong></div>
+</div>
+<header class="knowledge-radar-header">
+<div id="knowledge-radar-phases" class="knowledge-radar-phases" aria-label="Status der vier Wissensradar-Stufen">
+<div class="knowledge-radar-phase active" data-radar-phase="1"><span>01</span><strong>Erkennen</strong><small>Wissenslücken</small></div>
+<div class="knowledge-radar-phase" data-radar-phase="2"><span>02</span><strong>Recherchieren</strong><small>Quellen prüfen</small></div>
+<div class="knowledge-radar-phase" data-radar-phase="3"><span>03</span><strong>Vorschlag</strong><small>Diff &amp; Links</small></div>
+<div class="knowledge-radar-phase" data-radar-phase="4"><span>04</span><strong>Pflegen</strong><small>Wiederkehrend</small></div>
+<div class="knowledge-radar-phase goal" data-radar-phase="5"><span>→</span><strong>Station 06</strong><small>Freigabe</small></div>
+<div id="knowledge-radar-phase-status" class="knowledge-radar-phase-status" aria-live="polite">Stufe 1 · Radar bereit</div>
+</div>
+<button id="knowledge-radar-refresh" type="button">Neu analysieren</button>
+</header>
+<div class="knowledge-radar-workspace">
+<section class="panel knowledge-radar-list-panel">
+<div class="knowledge-radar-tabs" role="tablist" aria-label="Radar-Arbeitslisten">
+<button id="knowledge-radar-tab-open" class="active" type="button" role="tab" aria-selected="true">Offene Kandidaten <span id="knowledge-radar-open-count">0</span></button>
+<button id="knowledge-radar-tab-researched" type="button" role="tab" aria-selected="false">Bereits recherchiert / Pflege <span id="knowledge-radar-researched-count">0</span></button>
+</div>
+<div class="knowledge-radar-toolbar">
+<label for="knowledge-radar-filter">Themen filtern</label>
+<input id="knowledge-radar-filter" type="search" placeholder="Thema, Frage oder Quellseite">
+<label class="knowledge-radar-ai-option"><input id="knowledge-radar-ai-enabled" type="checkbox"> KI-gestützte Radarbewertung verwenden <small>Eigene Sitzung · nur Vorschlag · keine Vault-Änderung</small></label>
+</div>
+<div id="knowledge-radar-status" class="knowledge-radar-status" aria-live="polite">Analyse wird vorbereitet …</div>
+<div id="knowledge-radar-list" class="knowledge-radar-list"></div>
+<div id="knowledge-radar-researched-list" class="knowledge-radar-list" hidden></div>
+</section>
+<aside id="knowledge-radar-detail-panel" class="panel knowledge-radar-detail" aria-live="polite" aria-label="Kandidatenauswahl und Radardetails">
+<span class="eyebrow">Ausgewählter Kandidat</span>
+<label class="knowledge-radar-candidate-menu" for="knowledge-radar-candidate-select">
+<span id="knowledge-radar-candidate-menu-label">Kandidaten auswählen</span>
+<select id="knowledge-radar-candidate-select">
+<option value="">Bitte Kandidaten wählen …</option>
+</select>
+</label>
+<h2 id="knowledge-radar-title">Kandidat auswählen</h2>
+<div id="knowledge-radar-detail-body">
+<p>Wähle links eine Wissenslücke aus. Die Auswahl startet noch keine Recherche.</p>
+</div>
+<button id="knowledge-radar-research" type="button" disabled>Kontrollierte Recherche starten</button>
+<button id="knowledge-radar-ai-evaluate" type="button" disabled>Lokale KI bewerten lassen</button>
+<small id="knowledge-radar-selection-status">Maximal fünf Quellen; Ergebnisse bleiben außerhalb der Vault.</small>
+<section id="knowledge-radar-ai-result" class="knowledge-radar-ai-result" hidden></section>
+<section id="knowledge-radar-result" class="knowledge-radar-result" hidden></section>
+</aside>
+</div>
+<section class="panel knowledge-growth-panel" aria-label="Regelmäßiges Wachstum">
+<div>
+<span class="eyebrow">Stufe 4 · Regelmäßiges Wachstum</span>
+<strong>Radar-Zeitplan</strong>
+</div>
+<label>Zeitplan
+<select id="knowledge-growth-schedule">
+<option value="manual">Manuell</option>
+<option value="weekly">Wöchentlich</option>
+<option value="monthly">Monatlich</option>
+</select>
+</label>
+<label>Themenbudget
+<input id="knowledge-growth-budget" type="number" min="1" max="10" value="3">
+</label>
+<button id="knowledge-growth-save" type="button">Einstellungen speichern</button>
+<button id="knowledge-growth-run" type="button">Radar-Lauf starten</button>
+<div id="knowledge-growth-status" class="knowledge-growth-status" aria-live="polite">Status wird geladen …</div>
+<details class="knowledge-growth-history">
+<summary>Recherchehistorie</summary>
+<div id="knowledge-growth-history-list"></div>
+</details>
+</section>
+<div id="knowledge-radar-detail-backdrop" class="sidebar-backdrop"></div>
+<button id="knowledge-radar-detail-toggle" class="details-toggle-btn knowledge-radar-detail-toggle" type="button" aria-label="Kandidatenmenü ein- oder ausklappen" aria-expanded="false" aria-controls="knowledge-radar-detail-panel">
+<span id="knowledge-radar-detail-toggle-icon" aria-hidden="true">◂</span>
+</button>
+</section>
+
+
+</main>
+
+
+
+
+<footer>
+
+<div class="footer-vault-status" title="Aktiver Vault-Pfad">
+🟢 Vault: <span id="vault-path">loading</span>
+</div>
+
+<div id="ollama-footer-model" class="footer-model-selector" aria-live="polite">
+<span>Modell:</span>
+<select aria-label="Aktives Ollama-Sitzungsmodell" disabled>
+<option>Wird geladen …</option>
+</select>
+</div>
+
+<div>
+Modus: Readonly
+</div>
+
+<div class="footer-actions">
+<button id="vault-upload-open" class="ollama-open-button" type="button">⬆ Upload</button>
+</div>
+
+
+</footer>
+
+
+<div id="markdown-editor-modal" class="markdown-editor-modal" aria-hidden="true">
+
+<div id="markdown-editor-backdrop" class="markdown-editor-backdrop"></div>
+
+<div class="markdown-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="markdown-editor-title">
+
+<div class="markdown-editor-header">
+<div>
+<h3 id="markdown-editor-title">AGENTS.md</h3>
+<small id="markdown-editor-subtitle">Regelquelle · Vault</small>
+</div>
+<button id="markdown-editor-close" class="markdown-editor-close" type="button" aria-label="Schließen">✕</button>
+</div>
+
+<div class="markdown-editor-body" id="markdown-editor-body">
+
+<div class="markdown-editor-pane markdown-editor-pane-left" id="markdown-editor-pane-left">
+<div class="markdown-editor-pane-heading">Editor</div>
+<textarea id="markdown-editor-textarea" class="markdown-editor-textarea" spellcheck="false"></textarea>
+</div>
+
+<div class="markdown-editor-resizer" id="markdown-editor-resizer" role="separator" aria-orientation="vertical" aria-label="Spaltenbreite anpassen" tabindex="0"></div>
+
+<div class="markdown-editor-pane markdown-editor-pane-right">
+<div class="markdown-editor-pane-heading">Ansicht</div>
+<div id="markdown-editor-preview" class="markdown-editor-preview"></div>
+</div>
+
+</div>
+
+<div class="markdown-editor-footer">
+<small id="markdown-editor-status">Wird geladen …</small>
+<div class="markdown-editor-buttons">
+<button id="markdown-editor-cancel" type="button" class="secondary">Schließen</button>
+<button id="markdown-editor-save" type="button">Speichern</button>
+</div>
+</div>
+
+<div id="markdown-editor-confirm" class="markdown-editor-confirm">
+<small>Es gibt ungespeicherte Änderungen. Wirklich schließen?</small>
+<div class="markdown-editor-buttons">
+<button id="markdown-editor-confirm-cancel" type="button" class="secondary">Abbrechen</button>
+<button id="markdown-editor-confirm-discard" type="button" class="secondary">Verwerfen & schließen</button>
+<button id="markdown-editor-confirm-save" type="button">Speichern & schließen</button>
+</div>
+</div>
+
+</div>
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/three.module.js",
+    "three/addons/": "/vendor/three/addons/"
+  }
+}
+</script>
+<script type="module" src="components/vault-graph-3d.js?v=atlas-neural-dendrites-2"></script>
+<script src="components/ollama-settings.js?v=model-footer-1"></script>
+<script src="components/vault-upload.js?v=dokulader-web-1"></script>
+<script src="components/loop-renderer.js?v=core-autonomous-only-3"></script>
+<script src="components/vault-graph-explorer.js?v=graph-3d-indexer-1"></script>
+<script src="components/knowledge-radar.js?v=knowledge-radar-10"></script>
+<script src="app.js?v=model-footer-1"></script>
+
+</body>
+
+</html>

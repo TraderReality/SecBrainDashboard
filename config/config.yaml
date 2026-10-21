@@ -1,0 +1,15 @@
+project:
+  name: SecBrain Watcher
+  version: 0.1
+
+vault:
+  path: "/home/secbrain/Dokumente/SecBrain/"
+
+watcher:
+  readonly: true
+
+loop:
+  stations: 12
+
+output:
+  reports: "docs/reports/"

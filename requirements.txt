@@ -1,0 +1,7 @@
+pyyaml
+fastapi
+uvicorn
+beautifulsoup4>=4.12,<5
+markdownify>=0.14,<2
+requests>=2.32,<3
+pymupdf4llm>=0.0.27,<1
