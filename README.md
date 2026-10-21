@@ -12,6 +12,11 @@ Migrations-Staging vom 21. Oktober 2026. Produktiv läuft dieser Stand auf einer
 Synology DS1821+ im Heimnetz. Dieses Repository enthält Quellcode, Tests und
 Deployment-Definitionen, aber keine Vault-, Index-, Laufzeit- oder
 Sicherungsdaten und keine `.env`-Dateien.
+Seit dem 22. Oktober 2026 ist NAS-Main im Heimnetz unter
+`https://192.168.0.79:18443` mit Anmeldung erreichbar; die lokale CA muss auf
+jedem verwendeten Gerät vertraut werden. Der aktuelle Prüfstand steht in
+`docs/uebergabe.md`; die Einrichtung der Geräte in
+[docs/https-clients.md](docs/https-clients.md).
 
 ## Struktur
 

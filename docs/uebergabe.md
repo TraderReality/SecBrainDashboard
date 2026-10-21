@@ -1,6 +1,40 @@
 # Übergabe
 
-## Produktivstand am 21.10.2026
+## Produktivstand am 22.10.2026
+
+- GitHub-`main`: Merge-Commit `e8088990d63adee4139ab16d9434dba689f00ce5`
+  aus PR #3; dessen Baum entspricht dem auf dem NAS ausgerollten PR-Commit
+  `00d7df2fbb75323105d752ddc2bfdd2f435d6215`.
+- NAS-Main verwendet Image-ID
+  `sha256:4579948354e06cca5fe34ad7146574f1a5a77b4137ccc8ab554856e9b5a65c52`
+  und den neuen Quellbaum unter
+  `/volume1/docker/secbrain/secbrain-main/watcher-next-00d7df2`. Dessen 108
+  versionierte Dateien stimmten vor dem Deployment per SHA-256 mit PR #3
+  überein. Der vorherige Quellbaum bleibt für den Rückweg erhalten.
+- Der Zugang ist `https://192.168.0.79:18443`. Der direkte HTTP-Port `18080`
+  ist nur an NAS-Loopback gebunden und vom MacBook sowie KI-Server aus nicht
+  mehr erreichbar. Es wurde kein Router-Port geöffnet.
+- Das MacBook vertraut der produktiven lokalen CA im Benutzer-Schlüsselbund;
+  der native macOS-Curl-Aufruf prüfte HTTPS ohne Ausnahmeschalter erfolgreich.
+  Das öffentliche Zertifikat liegt unter
+  `/Users/mariuskahl/SecBrain-CA-2026-10-22.crt` (SHA-256-Fingerabdruck:
+  `D4:25:0B:54:9A:01:36:A9:10:E3:2B:87:A9:27:54:58:72:5B:2F:CE:2A:9D:5C:39:AF:DD:FC:B7:53:C7:A2:40`).
+  Der private CA-Schlüssel bleibt mit Modus 0600 auf dem NAS.
+- Die Zugangsdaten für Main und Dev liegen nur in geschützten Dateien
+  außerhalb des Repositorys. Für den Benutzer liegt ein Exemplar unter
+  `/Users/mariuskahl/SecBrain-Zugang-2026-10-22.txt` (Modus 0600). Keine
+  Zugangsdaten werden in dieser Übergabe wiedergegeben.
+- NAS-Main und bestehender Dev-Container sind `healthy`. Über HTTPS:
+  `/healthz` HTTP 200; Oberfläche, API und eine Schreibroute ohne Anmeldung
+  HTTP 401; Oberfläche, Frontend-Skript und API mit Anmeldung HTTP 200.
+  Architektur `SOURCE_ONLY`; QMD `available: true`, Provider `qmd-bm25`,
+  Collection `secbrain-main`.
+- Der KI-Server erreicht die App mit dem öffentlichen CA-Zertifikat und prüft
+  die TLS-Kette erfolgreich. Systemweites Vertrauen auf Ubuntu wurde mangels
+  administrativer Rechte dort noch nicht eingerichtet. Das iPhone benötigt
+  ebenfalls die manuelle Installation und volle Vertrauensstellung der CA.
+
+## Vorheriger Produktivstand am 21.10.2026
 
 - GitHub-`main`: `f9f06659ee64ddfa5d80044f47b8dffc856c418e`.
 - Die 105 versionierten Dateien im NAS-Main-Quellbaum und die 73 ins laufende
@@ -61,36 +95,36 @@
   `/volume1/docker/secbrain/auth-check-20261021` und berührt weder Main- noch
   bestehende Dev-Vault oder State.
 
+## Sicherung und Rückweg für den HTTPS-Rollout
+
+- Vor der Umschaltung wurden Quellbaum, bisherige Compose-Datei, Vault und
+  State unter
+  `/volume1/docker/secbrain/backups/secbrain-main-pre-https-20261022.tar.gz`
+  gesichert (SHA-256:
+  `f56dc1c290b750ada7c4a67aa2c3791cddaf346fa3962095d7b9b45b82fd121e`,
+  620 Archiveinträge). Die bisherige Image-ID wurde zusätzlich als
+  `secbrain-dashboard:rollback-f9f06659-20261022` markiert.
+- Die produktive CA wurde separat unter
+  `/volume1/docker/secbrain/backups/secbrain-tls-ca-20261022.tar.gz` gesichert
+  (SHA-256:
+  `6ea9f484ea1b0b04aa041330181ecf445dcbcb0a2dc32f446abb81f6e0198b4c`).
+  Beide Archive haben Modus 0600; das CA-Archiv enthält private Schlüssel und
+  darf nicht verteilt werden.
+- Bei einem Fehler den neuen Compose-Stand stoppen und den bisherigen
+  Quellbaum `.../secbrain-main/watcher` mit dem markierten Image wieder
+  starten. Vault und State nur dann aus dem Archiv wiederherstellen, wenn
+  diese Daten tatsächlich beschädigt wurden; spätere Nutzerdaten sonst
+  erhalten. CA-Daten nicht versehentlich neu erzeugen, damit vertraute
+  Clients ihre Zertifikatskette behalten.
+
 ## Nächste Schritte und Grenzen
 
-1. Feature-Branch per Pull Request gegen `main` prüfen.
-2. Für Main geschützte Zugangsdaten bereitstellen und HTTPS oder einen
-   geschützten Tunnel einrichten; den direkten HTTP-Zugang entsprechend
-   begrenzen. Die aktuellen Geheimniswerte wurden nicht gelesen.
-3. Vor einem freigegebenen Main-Deployment Backup und Rückweg erneut prüfen,
-   dann Dev und Main getrennt testen. Kein Main-Deploy ohne Freigabe.
-4. Browser-End-to-End-Tests für Loop, Radar, Upload und 3D-Graph bleiben offen.
-5. Der am 21.10.2026 dokumentierte QMD-Abhängigkeitsaudit meldete acht
-   transitive Advisories; er wurde in dieser Korrektur nicht neu bewertet.
-
-## HTTPS-Nachtrag vom 22.10.2026
-
-- Der Nutzer hat die NAS-IP ohne eigenen Domainnamen gewählt. Auf dem
-  Feature-Branch ist ein Caddy-Proxy auf `192.168.0.79:18443` vorbereitet;
-  der direkte Main-App-Port wird fest auf NAS-Loopback begrenzt.
-- Caddy `2.11.7-alpine` ist per Image-Digest gepinnt. Seine lokale CA liegt
-  dauerhaft unter dem externen `SECBRAIN_TLS_DATA`. Nur das öffentliche
-  `root.crt` darf an Clients verteilt werden.
-- Isolierter NAS-Test `secbrain-tls-check` auf Port `18444`: HTTPS mit
-  verifiziertem Test-CA-Zertifikat, `/healthz` HTTP 200, ohne Anmeldung
-  Oberfläche und API HTTP 401, mit Anmeldung Architektur `SOURCE_ONLY` und
-  QMD `available: true` für Collection `secbrain-tls-check-20261022`.
-  Die anfängliche TLS-Störung bei Clients ohne SNI wurde mit `default_sni`
-  behoben und danach erneut erfolgreich geprüft.
-- Der Test benutzte nur eine synthetische Vault und Test-Zugangsdaten. NAS-Main
-  und der vorhandene Dev-Dienst wurden nicht verändert. Das MacBook vertraut
-  der isolierten Test-CA nicht systemweit; die Prüfung erfolgte ausdrücklich
-  mit deren CA-Datei.
-- Vor Main-Umschaltung: vollständiges Backup inklusive Caddy-CA-Daten,
-  geschützte Main-/Dev-Zugangsdaten, Compose-Konfigurationsprüfung und
-  Einbindung des produktiven CA-Stammzertifikats auf den genutzten Geräten.
+1. Auf dem iPhone das öffentliche CA-Zertifikat nach Fingerabdruckprüfung
+   installieren und für SSL/TLS ausdrücklich als vertrauenswürdig aktivieren.
+2. Auf dem KI-Server bei Bedarf mit administrativen Rechten die CA in den
+   Ubuntu-Systemspeicher aufnehmen; die Prüfung mit `curl --cacert` ist
+   bereits erfolgreich.
+3. Browser-End-to-End-Tests für Loop, Radar, Upload und 3D-Graph auf MacBook
+   und iPhone durchführen. Die API- und statischen Frontend-Tests sind grün.
+4. Der am 21.10.2026 dokumentierte QMD-Abhängigkeitsaudit meldete acht
+   transitive Advisories; er wurde beim HTTPS-Rollout nicht neu bewertet.
