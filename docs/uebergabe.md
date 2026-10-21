@@ -8,16 +8,20 @@
   auf dem KI-Server läuft nur auf `127.0.0.1:8011`, meldet den Loop als `idle`
   und verwendet eine getrennte lokale `dev-runtime`-Kopie. Sie ist weder ein
   Symlink zur Governance-Vault noch mit der NAS-Main-Vault verbunden.
-- Die produktive NAS-Main-Vault hat 87 uncommittete Git-Einträge: 33 geändert,
-  3 gelöscht, 51 neu; nur einer liegt in `01 Inbox`. Der aktuelle
-  `ensure_commit_ready`-Schutz verweigert damit zu Recht einen neuen Loop-Lauf.
-  Diese Nutzerdaten wurden weder geändert noch pauschal committet.
-- Vor einer möglichen Baseline wurde die Main-Vault unter
+- Die produktive NAS-Main-Vault hatte 87 uncommittete Git-Einträge: 33 geändert,
+  3 gelöscht, 51 neu; nur einer lag in `01 Inbox`. Vor der Baseline wurde sie unter
   `/volume1/docker/secbrain/backups/secbrain-main-vault-before-baseline-20261022.tar.gz`
   gesichert (SHA-256
   `4ab35575fe27988dca71642eb610a8c8ac84c1544af2fa1221b2e2c1b89335b9`,
   Modus 0600). Alle 304 regulären Archivdateien stimmten per SHA-256 mit dem
   Live-Bestand überein. Das Archiv enthält Nutzerdaten und bleibt auf dem NAS.
+- Die 87 Einträge wurden nach einem geprüften Vorabvergleich als lokaler
+  Main-Vault-Baseline-Commit `4053d67` erfasst. Nur `.gitignore` wurde um
+  `__pycache__/` und `*.pyc` ergänzt; `core.filemode=false` verhindert
+  Synology-bedingte reine Modusabweichungen. 119 reguläre Vault-Dateien
+  stimmten nach dem Commit bytegleich mit der Sicherung überein. Der Git-Status
+  ist leer und `ensure_commit_ready()` besteht. Der Vault-Commit wurde nicht
+  nach GitHub übertragen.
 - Ein separater Codefehler wurde behoben: Loop-Vorschläge der Stationen 01–05
   werden vor der Freigabe im State statt in der Vault abgelegt. Ablehnung lässt
   die Vault unverändert; erst Freigabe kopiert den Vorschlag in die Vault.
@@ -26,11 +30,34 @@
   Git-Commit. Healthcheck, Authentisierung und QMD waren grün. Testcontainer,
   Testimage und Testdaten wurden danach entfernt. NAS-Main und bestehender
   NAS-Dev-Dienst blieben gesund.
-- Der Codefix ist noch nicht auf NAS-Main ausgerollt. Vor einem produktiven
-  Loop-Lauf müssen die 87 bestehenden Vault-Änderungen einzeln eingeordnet und
-  als eigener, geprüfter Baseline-Stand gesichert werden.
+- Der Codefix aus PR #6 (Merge `446b8f41fb17ebbd971a7166bf02990ca4b06597`)
+  ist auf NAS-Main ausgerollt. Ein vollständiger produktiver Loop-Lauf durch
+  die Weboberfläche steht als separater End-to-End-Test noch aus.
 
-## Produktivstand am 22.10.2026
+## Aktueller Produktivstand am 22.10.2026
+
+- NAS-Main verwendet den Quellbaum
+  `/volume1/docker/secbrain/secbrain-main/watcher-main-446b8f4` und das Image
+  `secbrain-dashboard:446b8f4` (ID
+  `sha256:7b2ed012100a14661838d157f792aa103b7148222d931bb30c69b5d92d6e6907`).
+  Alle 109 versionierten Quelldateien stimmten vor dem Build bytegleich mit
+  GitHub-`main` überein.
+- Vor dem Rollout wurden alter Quellbaum, Main-Vault und State unter
+  `/volume1/docker/secbrain/backups/secbrain-main-pre-loopfix-20261022.tar.gz`
+  gesichert (SHA-256
+  `32e1c35227e939d925127fc14c78cb2c4d7f334785f496682c788f5ad4ace8a4`,
+  Modus 0600). Alle 417 regulären Archivdateien stimmten mit dem damaligen
+  Live-Bestand überein. Das alte Image trägt zusätzlich den Tag
+  `secbrain-dashboard:rollback-before-loopfix-20261022`.
+- Main und Dev sind `healthy`; der HTTPS-Proxy verwendet den neuen Quellbaum
+  bei unverändertem CA-Speicher. TLS-Verifikation vom MacBook, `/healthz`
+  HTTP 200, unangemeldete Oberfläche HTTP 401, angemeldeter API-Status
+  HTTP 200, Architektur `SOURCE_ONLY` und QMD `available: true` mit Collection
+  `secbrain-main` wurden nach dem Rollout geprüft. Main bleibt schreibgeschützt
+  gestartet, ohne Linux-Capabilities und mit `no-new-privileges`; HTTP-Port
+  `18080` bindet nur an `127.0.0.1`.
+
+## Vorheriger Produktivstand am 22.10.2026
 
 - Die produktive App stammt aus PR #3 (Merge-Commit
   `e8088990d63adee4139ab16d9434dba689f00ce5`); dessen Baum entspricht

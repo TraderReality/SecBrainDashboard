@@ -61,3 +61,12 @@ Eine Ablehnung verändert den Vault nicht. Erst nach Station-06-Freigabe wird
 der Vorschlag zusammen mit den freigegebenen Änderungen im Vault abgelegt und
 committet. So erzeugt die Analyse keine ungesicherten Vault-Änderungen und
 blockiert spätere Läufe nicht selbst.
+
+## 2026-10-22: Main-Vault lokal baselinefähig halten
+
+Die vor der Migration entstandenen Vault-Änderungen wurden erst nach einer
+geprüften NAS-Sicherung als lokaler Commit erfasst. Der Main-Vault wird nicht
+in das Anwendungs-Repository oder nach GitHub übertragen. Im Vault ignoriert
+`.gitignore` Python-Zwischendateien; die lokale Git-Konfiguration ignoriert
+reine Dateimodusabweichungen auf Synology. So kann der Watcher einen sauberen
+Ausgangsstand vor jedem produktiven Loop-Lauf prüfen.
