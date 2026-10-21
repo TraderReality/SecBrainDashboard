@@ -1,12 +1,13 @@
 # NAS-Betriebsumgebung
 
-Stand der verifizierten Migration vom 21. Oktober 2026. Keine Zugangsdaten,
+Stand des produktiven HTTPS-Rollouts vom 22. Oktober 2026. Keine Zugangsdaten,
 Schlüssel oder geheimen Variablenwerte in diese Datei schreiben.
 
 ## Hardware und Netz
 
 - Synology DS1821+, DSM 7.3.2
-- produktive LAN-Bindung: `192.168.0.79:18080`
+- produktiver HTTPS-Zugang: `192.168.0.79:18443`
+- HTTP-Port `18080` nur auf NAS-Loopback `127.0.0.1` gebunden
 - zweite NAS-Schnittstelle `.80` stellt Main nicht bereit
 - NAS-Dev bleibt an `127.0.0.1:18011` gebunden
 - keine Router- oder Internetfreigabe für SECBrain Watcher
@@ -20,14 +21,13 @@ Reservierung im Router sinnvoll.
 - Python 3.12, FastAPI/Uvicorn
 - QMD 2.8.3 auf Node.js 22, getrennte Kollektionen und Indizes; am
   21.10.2026 im laufenden Main-Container direkt geprüft
-- Root-Dateisystem read-only, alle Capabilities entfernt,
-  `no-new-privileges`, 768 MB Speichergrenze
+- Main-Root-Dateisystem read-only, alle Main-Capabilities entfernt,
+  `no-new-privileges`, 768 MB Speichergrenze. Der HTTPS-Proxy hat nur
+  `NET_BIND_SERVICE` und ebenfalls ein read-only Root-Dateisystem.
 - Vault und State pro Umgebung getrennt; Quellcode nur lesend gemountet
-- Main-Quellbaum ohne `.git`; der Architekturstatus muss diesen Archivbetrieb
-  als `SOURCE_ONLY` behandeln. Die Korrektur ist noch nicht auf Main ausgerollt.
-- Der bisherige direkte HTTP-LAN-Zugang ist für HTTP-Basic-Zugangsdaten nicht
-  transportverschlüsselt. Vor einem Rollout mit Anmeldung ist ein geschützter
-  HTTPS-Zugang oder Tunnel erforderlich.
+- Main-Quellbaum ohne `.git`; der Architekturstatus meldet `SOURCE_ONLY`.
+- HTTP Basic schützt Oberfläche und API über den HTTPS-Proxy. Die lokale CA
+  muss auf Clients vertraut werden; siehe [HTTPS-Clients](https-clients.md).
 
 ## Bekannte Synology-Besonderheiten
 

@@ -8,7 +8,8 @@ set -euo pipefail
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 python_bin="$project_root/.venv/bin/python"
 backend_dir="$project_root/dashboard/backend"
-nas_watcher_url="${SECBRAIN_WATCHER_URL:-http://192.168.0.79:18080}"
+nas_watcher_url="${SECBRAIN_WATCHER_URL:-https://192.168.0.79:18443}"
+ca_cert="${SECBRAIN_CA_CERT:-$HOME/SecBrain-CA-2026-10-22.crt}"
 local_watcher_url="http://127.0.0.1:8080"
 watcher_url="$nas_watcher_url"
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/secbrain-watcher"
@@ -24,30 +25,33 @@ notify_error() {
 }
 
 watcher_is_ready() {
-    "$python_bin" - "$watcher_url" <<'PY'
-import sys
-from urllib.error import HTTPError
-from urllib.request import urlopen
-
-base = sys.argv[1].rstrip("/")
-for path in ("/healthz", "/api/status"):
-    try:
-        with urlopen(base + path, timeout=0.8) as response:
-            if response.status == 200:
-                raise SystemExit(0)
-    except HTTPError as exc:
-        # Older NAS builds have no /healthz. A protected API answers 401.
-        if path == "/api/status" and exc.code == 401:
-            raise SystemExit(0)
-    except Exception:
-        continue
-raise SystemExit(1)
-PY
+    local status path
+    local -a tls_args=()
+    if [[ "$watcher_url" == https://* ]]; then
+        if [[ -n "${SECBRAIN_CA_CERT:-}" && ! -f "$ca_cert" ]]; then
+            return 1
+        fi
+        if [[ -f "$ca_cert" ]]; then
+            tls_args=(--cacert "$ca_cert")
+        fi
+    fi
+    for path in /healthz /api/status; do
+        status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --max-time 2 "${tls_args[@]}" "${watcher_url%/}$path")" || continue
+        if [[ "$status" == 200 || ( "$path" == /api/status && "$status" == 401 ) ]]; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 open_watcher() {
     if [[ "${SECBRAIN_WATCHER_NO_OPEN:-0}" != "1" ]]; then
-        xdg-open "$watcher_url" >/dev/null 2>&1 &
+        if command -v open >/dev/null 2>&1; then
+            open "$watcher_url" >/dev/null 2>&1 &
+        else
+            xdg-open "$watcher_url" >/dev/null 2>&1 &
+        fi
     fi
 }
 
