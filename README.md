@@ -27,7 +27,7 @@ tools/              Generatoren für Architekturartefakte
 ## Lokale Entwicklung
 
 Voraussetzungen: Python 3.12, Node.js für die JavaScript-Syntaxprüfung und
-optional QMD 2.5.3 für eine echte Retrieval-Prüfung.
+optional QMD 2.8.3 für eine echte Retrieval-Prüfung.
 
 ```bash
 python3 -m venv .venv
@@ -51,7 +51,7 @@ bereitgestellt. Lokale `.env`-Dateien bleiben außerhalb von Git.
 ## Synology-Deployment
 
 Das Image unter `deploy/synology/` enthält Python 3.12 und die gepinnte
-QMD-Version 2.5.3 auf Node.js 22. Beim Containerstart wird eine eigene
+QMD-Version 2.8.3 auf Node.js 22. Beim Containerstart wird eine eigene
 QMD-Kollektion für den gemounteten Vault angelegt oder aktualisiert. Der Index
 liegt im jeweiligen State-Volume; Main und Dev teilen weder Vault noch Index.
 
@@ -64,6 +64,10 @@ benötigten Variablennamen stehen in [deploy/synology/README.md](deploy/synology
 - Vault und State sind die einzigen beschreibbaren Mounts.
 - Der Quellbaum und das Container-Root-Dateisystem sind schreibgeschützt.
 - Linux-Capabilities sind entfernt; `no-new-privileges` ist aktiv.
+- Das Compose-Deployment verlangt getrennte Main-/Dev-Zugangsdaten. HTTP Basic
+  schützt Oberfläche und API; nur `/healthz` ist ohne Anmeldung erreichbar.
+- Zugangsdaten benötigen vor einem produktiven Rollout HTTPS im Heimnetz oder
+  einen geschützten Tunnel. Die direkte HTTP-Bindung überträgt sie unverschlüsselt.
 - KI-Antworten führen keine Dateisystem- oder Git-Aktionen selbst aus.
 - Schreibende Watcher-Abläufe erfordern weiterhin die fachliche Freigabestufe.
 - Geheimnisse, `.env`-Dateien, Vaults, QMD-Indizes und Backups werden nicht

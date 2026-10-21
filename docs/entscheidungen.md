@@ -23,7 +23,20 @@ werden nicht übernommen.
 
 ## 2026-10-21: QMD reproduzierbar im Container bereitstellen
 
-Das Synology-Image installiert `@tobilu/qmd` 2.5.3 auf Node.js 22. Jede
+Das Synology-Image installiert `@tobilu/qmd` 2.8.3 auf Node.js 22. Jede
 Main-/Dev-Instanz verwendet eine eigene QMD-Kollektion und speichert den Index
 im jeweiligen State-Volume. Dadurch hängt die Retrieval-API nicht mehr von
 einer zufälligen QMD-Installation auf dem Host ab.
+
+## 2026-10-21: Archivquelle und Web-Zugriff
+
+Das NAS-Deployment verwendet einen Quellbaum ohne `.git`. Der Architekturstatus
+meldet dafür künftig `SOURCE_ONLY` statt eines Git-Fehlers; bei einem echten
+Checkout werden die vorhandenen Tags weiter geprüft. Fehlt das Quellverzeichnis
+oder ist Git beschädigt, bleibt der Status `ERROR`.
+
+Das Compose-Deployment verlangt getrennte Main-/Dev-Zugangsdaten und aktiviert
+HTTP Basic für die gesamte Oberfläche und API. Nur der inhaltsarme Endpunkt
+`/healthz` bleibt für den Container-Healthcheck öffentlich. Fehlende
+Zugangsdaten verhindern den App-Start. Wegen der bisherigen HTTP-LAN-Bindung
+ist ein HTTPS-Zugang oder geschützter Tunnel Voraussetzung für Main-Deployment.

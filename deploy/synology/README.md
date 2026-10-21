@@ -33,6 +33,20 @@ werden:
 - `SECBRAIN_OLLAMA_URL`, `SECBRAIN_OBSERVER_MODEL`
 - `SECBRAIN_MAIN_VAULT`, `SECBRAIN_MAIN_STATE`
 - `SECBRAIN_DEV_VAULT`, `SECBRAIN_DEV_STATE`
+- `SECBRAIN_MAIN_HTTP_USER`, `SECBRAIN_MAIN_HTTP_PASSWORD`
+- `SECBRAIN_DEV_HTTP_USER`, `SECBRAIN_DEV_HTTP_PASSWORD`
+
+Compose setzt `SECBRAIN_AUTH_REQUIRED=1`. Die App startet bei fehlenden
+Zugangsdaten nicht. Browser zeigen die HTTP-Basic-Anmeldung automatisch an;
+Oberfläche und sämtliche API-Routen sind geschützt. Nur `/healthz` bleibt
+für den Container-Healthcheck ohne Anmeldung erreichbar. Main und Dev verwenden
+getrennte Zugangsdaten. Secret-Werte dürfen nicht im Repository, in Befehlslogs
+oder in Berichten stehen.
+
+**Vor Main-Deployment:** Der bisherige direkte HTTP-Port im LAN verschlüsselt
+die Basic-Zugangsdaten nicht. Zuerst HTTPS über einen geschützten LAN-Zugang
+oder einen Tunnel bereitstellen und die direkte HTTP-Bindung entsprechend
+begrenzen. Keine Router- oder öffentliche Freigabe daraus ableiten.
 
 Optionale Werte:
 
@@ -50,12 +64,14 @@ Optionale Werte:
 config=/geschuetzter/pfad/secbrain-dev.env
 
 ./preflight.sh "$config"
-docker compose --env-file "$config" --profile dev config
+docker compose --env-file "$config" --profile dev config --quiet
 docker compose --env-file "$config" --profile dev build dev
 docker compose --env-file "$config" --profile dev up -d dev
 docker compose --env-file "$config" --profile dev ps
-curl --fail http://127.0.0.1:8011/api/status
-curl --fail http://127.0.0.1:8011/api/vault/retrieval/status
+curl --fail http://127.0.0.1:8011/healthz
+test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8011/api/status)" = 401
+curl --fail --netrc-file /geschuetzter/pfad/secbrain-dev.netrc http://127.0.0.1:8011/api/status
+curl --fail --netrc-file /geschuetzter/pfad/secbrain-dev.netrc http://127.0.0.1:8011/api/vault/retrieval/status
 ```
 
 Der Retrieval-Status muss `available: true`, das erwartete Dev-

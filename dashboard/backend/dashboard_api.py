@@ -18,6 +18,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
+from access_control import BasicAuthMiddleware, validate_auth_configuration
 from runtime.runtime_manager import RuntimeManager
 from guardian_rules import chat_context, for_station, free_chat_context
 from dokulader_service import import_package, import_pdf, import_urls
@@ -45,6 +46,7 @@ FRONTEND_DIR = (
 
 @asynccontextmanager
 async def app_lifespan(_app):
+    validate_auth_configuration()
     knowledge_growth_scheduler.start()
     try:
         yield
@@ -53,6 +55,12 @@ async def app_lifespan(_app):
 
 
 app = FastAPI(title="SECBrain Watcher Dashboard", lifespan=app_lifespan)
+app.add_middleware(BasicAuthMiddleware)
+
+
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    return {"status": "ok"}
 
 
 watcher_loop = WatcherLoopRuntime()

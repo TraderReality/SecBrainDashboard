@@ -31,13 +31,32 @@ class GitConnectorTests(unittest.TestCase):
             self.assertEqual(result["status"], "READY")
             self.assertEqual(result["repository"], str(repository.resolve()))
             self.assertEqual(result["frozen"], ["R1-FROZEN"])
+            self.assertTrue(result["git_available"])
 
-    def test_scan_reports_invalid_repository_without_raising(self):
+    def test_scan_accepts_archive_without_git_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             result = GitConnector(directory).scan()
 
-            self.assertEqual(result["status"], "ERROR")
+            self.assertEqual(result["status"], "SOURCE_ONLY")
             self.assertEqual(result["repository"], str(Path(directory).resolve()))
+            self.assertEqual(result["frozen"], [])
+            self.assertFalse(result["git_available"])
+            self.assertNotIn("error", result)
+
+    def test_scan_reports_missing_source_without_raising(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = Path(directory) / "missing"
+            result = GitConnector(missing).scan()
+
+            self.assertEqual(result["status"], "ERROR")
+            self.assertIn("fehlt", result["error"])
+
+    def test_scan_reports_broken_git_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / ".git").write_text("gitdir: /missing/git-directory\n")
+            result = GitConnector(directory).scan()
+
+            self.assertEqual(result["status"], "ERROR")
             self.assertIn("git", result["error"].lower())
 
 
