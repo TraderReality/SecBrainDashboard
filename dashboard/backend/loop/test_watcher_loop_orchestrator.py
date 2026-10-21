@@ -1,8 +1,13 @@
 import tempfile
 import unittest
 import hashlib
+import os
+import shutil
+import stat
+import subprocess
 from pathlib import Path
 from time import sleep
+from unittest.mock import patch
 
 from loop.watcher_loop_orchestrator import WatcherLoopOrchestrator
 from loop.watcher_loop_runtime import WatcherLoopRuntime
@@ -12,13 +17,18 @@ class WatcherLoopOrchestratorTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.vault = Path(self.temp.name)
+        self.state = self.vault.parent / (self.vault.name + "-state")
+        self.env_patch = patch.dict(os.environ, {"SECBRAIN_WATCHER_STATE_DIR": str(self.state)})
+        self.env_patch.start()
         for folder in ("01 Inbox", "06 Archiv", "08 KI-Wissensbank/_Vorschlaege", "09 Werkzeuge"):
             (self.vault / folder).mkdir(parents=True)
         (self.vault / "01 Inbox/eingang.md").write_text("# Echter Eingang\n\nInhalt", encoding="utf-8")
         (self.vault / "09 Werkzeuge/indexer.py").write_text("print('indexiert')\n", encoding="utf-8")
 
     def tearDown(self):
+        self.env_patch.stop()
         self.temp.cleanup()
+        shutil.rmtree(self.state, ignore_errors=True)
 
     @staticmethod
     def wait(orchestrator, state):
@@ -45,6 +55,7 @@ class WatcherLoopOrchestratorTest(unittest.TestCase):
             return {"message": {"content": f"Ergebnis {len(calls)}"}}
 
         orchestrator = WatcherLoopOrchestrator(WatcherLoopRuntime(), chat, str(self.vault), self.retrieval)
+        before = {path.relative_to(self.vault) for path in self.vault.rglob("*")}
         orchestrator.start("Inbox einpflegen", "test-model")
         self.wait(orchestrator, "awaiting_approval")
 
@@ -57,6 +68,10 @@ class WatcherLoopOrchestratorTest(unittest.TestCase):
         self.assertIn("Vault-Quellen via QMD", state["results"][0]["output"])
         self.assertTrue((self.vault / "01 Inbox/eingang.md").exists())
         self.assertFalse((self.vault / "06 Archiv/eingang.md").exists())
+        self.assertEqual(before, {path.relative_to(self.vault) for path in self.vault.rglob("*")})
+        self.assertTrue(Path(state["proposal"]["path"]).is_file())
+        self.assertEqual(Path(state["proposal"]["path"]).parent, (self.state / "loop-proposals").resolve())
+        self.assertEqual(stat.S_IMODE(Path(state["proposal"]["path"]).stat().st_mode), 0o600)
         self.assertEqual(orchestrator._runtime.status()["current_station"], 6)
 
     def test_context_reads_existing_linked_vault_page(self):
@@ -72,6 +87,28 @@ class WatcherLoopOrchestratorTest(unittest.TestCase):
         self.assertIn("GELESENE VAULT-SEITE: 02 Projekte/SecBrain Watcher.md", context)
         self.assertIn("Tatsächlicher Projektinhalt", context)
 
+    def test_pending_proposal_does_not_dirty_git_vault(self):
+        subprocess.run(["git", "init", "-q", str(self.vault)], check=True)
+        subprocess.run(["git", "-C", str(self.vault), "add", "-A"], check=True)
+        subprocess.run([
+            "git", "-C", str(self.vault), "-c", "user.name=Test",
+            "-c", "user.email=test@example.invalid", "commit", "-qm", "Baseline",
+        ], check=True)
+        (self.vault / "01 Inbox/eingang.md").write_text("# Neuer Eingang\n", encoding="utf-8")
+        orchestrator = WatcherLoopOrchestrator(
+            WatcherLoopRuntime(), lambda **_: {"message": {"content": "Analyse"}},
+            str(self.vault), self.retrieval,
+        )
+        orchestrator.start("Inbox prüfen", "test-model")
+        self.wait(orchestrator, "awaiting_approval")
+        orchestrator._executor.ensure_commit_ready()
+        status = subprocess.run(
+            ["git", "-C", str(self.vault), "status", "--porcelain"],
+            capture_output=True, text=True, check=True,
+        ).stdout.splitlines()
+        self.assertEqual(len(status), 1)
+        self.assertIn("01 Inbox/eingang.md", status[0])
+
     def test_approval_applies_fixed_operations_and_completes(self):
         def chat(messages, model):
             return {"message": {"content": "Geprüfte Analyse"}}
@@ -86,6 +123,7 @@ class WatcherLoopOrchestratorTest(unittest.TestCase):
         self.assertFalse((self.vault / "01 Inbox/eingang.md").exists())
         self.assertTrue((self.vault / "06 Archiv/eingang.md").exists())
         self.assertTrue((self.vault / "08 KI-Wissensbank/Quelle — Eingang.md").exists())
+        self.assertEqual(len(list((self.vault / "08 KI-Wissensbank/_Vorschlaege").glob("Watcher-Vorschlag-*.md"))), 1)
         self.assertEqual(orchestrator.status()["completed_stations"], 12)
         self.assertEqual(
             [item["station_id"] for item in orchestrator.status()["results"]],
@@ -126,11 +164,13 @@ class WatcherLoopOrchestratorTest(unittest.TestCase):
             return {"message": {"content": "Analyse"}}
 
         orchestrator = WatcherLoopOrchestrator(WatcherLoopRuntime(), chat, str(self.vault))
+        before = {path.relative_to(self.vault) for path in self.vault.rglob("*")}
         orchestrator.start("Inbox einpflegen", "test-model")
         self.wait(orchestrator, "awaiting_approval")
         orchestrator.reject()
         self.assertTrue((self.vault / "01 Inbox/eingang.md").exists())
         self.assertEqual(orchestrator.status()["state"], "rejected")
+        self.assertEqual(before, {path.relative_to(self.vault) for path in self.vault.rglob("*")})
 
     def test_error_stops_at_failing_station(self):
         calls = []
