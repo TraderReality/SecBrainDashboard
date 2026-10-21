@@ -2,9 +2,11 @@
 
 ## Produktivstand am 22.10.2026
 
-- GitHub-`main`: Merge-Commit `e8088990d63adee4139ab16d9434dba689f00ce5`
-  aus PR #3; dessen Baum entspricht dem auf dem NAS ausgerollten PR-Commit
-  `00d7df2fbb75323105d752ddc2bfdd2f435d6215`.
+- Die produktive App stammt aus PR #3 (Merge-Commit
+  `e8088990d63adee4139ab16d9434dba689f00ce5`); dessen Baum entspricht
+  dem auf dem NAS ausgerollten PR-Commit
+  `00d7df2fbb75323105d752ddc2bfdd2f435d6215`. PR #4 ergänzte danach
+  die Betriebsdokumentation auf GitHub-`main`.
 - NAS-Main verwendet Image-ID
   `sha256:4579948354e06cca5fe34ad7146574f1a5a77b4137ccc8ab554856e9b5a65c52`
   und den neuen Quellbaum unter

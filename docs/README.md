@@ -115,7 +115,11 @@ python3 -m venv .venv
 ./scripts/start-secbrain-watcher.sh
 ```
 
-Danach: `http://127.0.0.1:8080`.
+Der Starter öffnet den produktiven HTTPS-Zugang auf dem NAS. Dafür muss das
+öffentliche CA-Zertifikat im Benutzerverzeichnis liegen oder mit
+`SECBRAIN_CA_CERT` angegeben werden; siehe [HTTPS-Clients](https-clients.md).
+Ein lokaler Start ist nur mit `./scripts/start-secbrain-watcher.sh --local-rollback`
+beabsichtigt und öffnet `http://127.0.0.1:8080`.
 
 ```bash
 .venv/bin/python -m pytest -q

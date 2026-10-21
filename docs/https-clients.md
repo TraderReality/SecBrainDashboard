@@ -18,6 +18,9 @@ Das Zertifikat wurde am 22.10.2026 dem Benutzer-Schlüsselbund als vertrauenswü
 CA hinzugefügt. Der native macOS-Curl-Aufruf prüfte die Verbindung ohne
 Ausnahme erfolgreich. Bei einem anderen Mac das öffentliche Zertifikat in
 Schlüsselbundverwaltung importieren und die SSL-Vertrauensstellung prüfen.
+Der Desktop-Starter verwendet das öffentliche Zertifikat unter dem oben
+genannten Pfad automatisch. Für einen anderen Speicherort
+`SECBRAIN_CA_CERT=/pfad/zum/zertifikat.crt` setzen.
 
 ## iPhone
 
