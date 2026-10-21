@@ -1,31 +1,73 @@
 # SecBrainDashboard
 
-Kurzbeschreibung des Projekts.
+SecBrainDashboard enthält den migrierten **SECBrain Watcher**: eine lokale
+Weboberfläche für Analyse, Recherche, Visualisierung und kontrollierte Pflege
+einer Markdown-Vault. Die Anwendung kombiniert ein FastAPI-Backend, ein
+statisches JavaScript-Frontend, Ollama und eine read-only QMD-Suchschicht.
 
-> Platzhalter: Zweck, Zielgruppe und Status des Dashboards hier beschreiben.
+## Status
 
-## Projektstruktur
+Der importierte Anwendungsstand stammt aus dem für NAS-Main gebauten
+Migrations-Staging vom 21. Oktober 2026. Produktiv läuft dieser Stand auf einer
+Synology DS1821+ im Heimnetz. Dieses Repository enthält Quellcode, Tests und
+Deployment-Definitionen, aber keine Vault-, Index-, Laufzeit- oder
+Sicherungsdaten und keine `.env`-Dateien.
 
+## Struktur
+
+```text
+dashboard/          FastAPI-Backend, Frontend und Tests
+deploy/synology/    Container-Build, Compose und QMD-Initialisierung
+desktop/            Desktop-Starter-Vorlage
+docs/               Architektur, Betrieb, Entscheidungen und Übergabe
+scripts/            lokale Start- und Installationshilfen
+tools/              Generatoren für Architekturartefakte
 ```
-SecBrainDashboard/
-├── docs/       Dokumentation: Architektur, Entscheidungen, Betrieb
-├── src/        Anwendungscode
-├── tests/      Automatisierte Tests
-├── scripts/    Hilfs- und Build-Skripte
-├── README.md   Diese Datei
-└── .gitignore  Vom Git ausgeschlossene Dateien
+
+## Lokale Entwicklung
+
+Voraussetzungen: Python 3.12, Node.js für die JavaScript-Syntaxprüfung und
+optional QMD 2.5.3 für eine echte Retrieval-Prüfung.
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m pytest -q
+find dashboard/frontend -name '*.js' -print0 | xargs -0 -n1 node --check
 ```
 
-## Erste Schritte
+Der Backend-Start für einen isolierten lokalen Test:
 
-> Platzhalter: Voraussetzungen, Installation und Startbefehl ergänzen,
-> sobald der Tech-Stack feststeht.
+```bash
+SECBRAIN_VAULT_PATH=/pfad/zu/einer/test-vault \
+SECBRAIN_WATCHER_REPOSITORY="$PWD" \
+.venv/bin/python -m uvicorn dashboard_api:app \
+  --app-dir dashboard/backend --host 127.0.0.1 --port 8011
+```
 
-## Entwicklung
+Konfiguration wird ausschließlich über die dokumentierten Umgebungsvariablen
+bereitgestellt. Lokale `.env`-Dateien bleiben außerhalb von Git.
 
-- Änderungen auf einem eigenen Branch entwickeln und per Pull Request einbringen.
-- Geheimnisse (Tokens, Passwörter, `.env`-Dateien) niemals committen.
+## Synology-Deployment
 
-## Lizenz
+Das Image unter `deploy/synology/` enthält Python 3.12 und die gepinnte
+QMD-Version 2.5.3 auf Node.js 22. Beim Containerstart wird eine eigene
+QMD-Kollektion für den gemounteten Vault angelegt oder aktualisiert. Der Index
+liegt im jeweiligen State-Volume; Main und Dev teilen weder Vault noch Index.
 
-> Platzhalter: Lizenz festlegen.
+Die Compose-Konfiguration besitzt getrennte Profile. Änderungen werden zuerst
+mit dem Dev-Profil und einer separaten Vault-Kopie geprüft. Details und die
+benötigten Variablennamen stehen in [deploy/synology/README.md](deploy/synology/README.md).
+
+## Sicherheitsmodell
+
+- Vault und State sind die einzigen beschreibbaren Mounts.
+- Der Quellbaum und das Container-Root-Dateisystem sind schreibgeschützt.
+- Linux-Capabilities sind entfernt; `no-new-privileges` ist aktiv.
+- KI-Antworten führen keine Dateisystem- oder Git-Aktionen selbst aus.
+- Schreibende Watcher-Abläufe erfordern weiterhin die fachliche Freigabestufe.
+- Geheimnisse, `.env`-Dateien, Vaults, QMD-Indizes und Backups werden nicht
+  versioniert.
+
+Weitere technische Details stehen in [docs/README.md](docs/README.md) und der
+aktuelle Übergabestand in [docs/uebergabe.md](docs/uebergabe.md).
