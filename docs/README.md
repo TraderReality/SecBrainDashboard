@@ -73,9 +73,13 @@ flowchart LR
 
 ## HTTP-API
 
+Im NAS-Compose-Deployment erfordern Oberfläche und alle API-Routen HTTP-Basic-
+Anmeldung. Nur `/healthz` ist für den Container-Healthcheck öffentlich.
+
 | Methode | Route | Zweck |
 | --- | --- | --- |
 | GET | `/api/status` | Vault- und Laufzeitstatus |
+| GET | `/healthz` | inhaltsarmer Healthcheck ohne Anmeldung |
 | GET | `/api/vault/graph` | abgeleitete Graphdaten |
 | GET/PUT | `/api/vault/agents-md` | Regelwerk lesen/gesichert schreiben |
 | POST | `/api/vault/inbox/upload` | Markdown in die Inbox laden |

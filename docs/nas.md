@@ -18,10 +18,16 @@ Reservierung im Router sinnvoll.
 
 - Projekt `secbrain-main`, getrenntes Projekt `secbrain-dev`
 - Python 3.12, FastAPI/Uvicorn
-- QMD 2.5.3 auf Node.js 22, getrennte Kollektionen und Indizes
+- QMD 2.8.3 auf Node.js 22, getrennte Kollektionen und Indizes; am
+  21.10.2026 im laufenden Main-Container direkt geprüft
 - Root-Dateisystem read-only, alle Capabilities entfernt,
   `no-new-privileges`, 768 MB Speichergrenze
 - Vault und State pro Umgebung getrennt; Quellcode nur lesend gemountet
+- Main-Quellbaum ohne `.git`; der Architekturstatus muss diesen Archivbetrieb
+  als `SOURCE_ONLY` behandeln. Die Korrektur ist noch nicht auf Main ausgerollt.
+- Der bisherige direkte HTTP-LAN-Zugang ist für HTTP-Basic-Zugangsdaten nicht
+  transportverschlüsselt. Vor einem Rollout mit Anmeldung ist ein geschützter
+  HTTPS-Zugang oder Tunnel erforderlich.
 
 ## Bekannte Synology-Besonderheiten
 

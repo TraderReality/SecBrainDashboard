@@ -24,15 +24,24 @@ notify_error() {
 }
 
 watcher_is_ready() {
-    "$python_bin" - "$watcher_url/api/status" <<'PY'
+    "$python_bin" - "$watcher_url" <<'PY'
 import sys
+from urllib.error import HTTPError
 from urllib.request import urlopen
 
-try:
-    with urlopen(sys.argv[1], timeout=0.8) as response:
-        raise SystemExit(0 if response.status == 200 else 1)
-except Exception:
-    raise SystemExit(1)
+base = sys.argv[1].rstrip("/")
+for path in ("/healthz", "/api/status"):
+    try:
+        with urlopen(base + path, timeout=0.8) as response:
+            if response.status == 200:
+                raise SystemExit(0)
+    except HTTPError as exc:
+        # Older NAS builds have no /healthz. A protected API answers 401.
+        if path == "/api/status" and exc.code == 401:
+            raise SystemExit(0)
+    except Exception:
+        continue
+raise SystemExit(1)
 PY
 }
 

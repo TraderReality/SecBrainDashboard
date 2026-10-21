@@ -36,8 +36,11 @@ services:
       SECBRAIN_OBSERVER_MODEL: "${SECBRAIN_OBSERVER_MODEL}"
       SECBRAIN_QMD_BINARY: /usr/local/bin/qmd
       SECBRAIN_QMD_COLLECTION: "${SECBRAIN_MAIN_QMD_COLLECTION:-secbrain-main}"
+      SECBRAIN_AUTH_REQUIRED: "1"
+      SECBRAIN_HTTP_USER: "${SECBRAIN_MAIN_HTTP_USER:?SECBRAIN_MAIN_HTTP_USER is required}"
+      SECBRAIN_HTTP_PASSWORD: "${SECBRAIN_MAIN_HTTP_PASSWORD:?SECBRAIN_MAIN_HTTP_PASSWORD is required}"
     ports:
-      - "${SECBRAIN_MAIN_BIND:-127.0.0.1}:${SECBRAIN_MAIN_PORT:-8080}:8080"
+      - "127.0.0.1:${SECBRAIN_MAIN_PORT:-8080}:8080"
     volumes:
       - "${SECBRAIN_MAIN_VAULT}:/vault"
       - "../..:/source:ro"
@@ -58,9 +61,38 @@ services:
       SECBRAIN_OBSERVER_MODEL: "${SECBRAIN_OBSERVER_MODEL}"
       SECBRAIN_QMD_BINARY: /usr/local/bin/qmd
       SECBRAIN_QMD_COLLECTION: "${SECBRAIN_DEV_QMD_COLLECTION:-secbrain-dev}"
+      SECBRAIN_AUTH_REQUIRED: "1"
+      SECBRAIN_HTTP_USER: "${SECBRAIN_DEV_HTTP_USER:?SECBRAIN_DEV_HTTP_USER is required}"
+      SECBRAIN_HTTP_PASSWORD: "${SECBRAIN_DEV_HTTP_PASSWORD:?SECBRAIN_DEV_HTTP_PASSWORD is required}"
     ports:
       - "${SECBRAIN_DEV_BIND:-127.0.0.1}:${SECBRAIN_DEV_PORT:-8011}:8080"
     volumes:
       - "${SECBRAIN_DEV_VAULT}:/vault"
       - "../..:/source:ro"
       - "${SECBRAIN_DEV_STATE}:/state"
+
+  https-main:
+    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    profiles: ["main"]
+    restart: unless-stopped
+    depends_on:
+      main:
+        condition: service_healthy
+    read_only: true
+    mem_limit: 256m
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      SECBRAIN_TLS_HOST: "${SECBRAIN_TLS_HOST:-192.168.0.79}"
+    ports:
+      - "${SECBRAIN_HTTPS_BIND:-192.168.0.79}:${SECBRAIN_HTTPS_PORT:-18443}:8443"
+    volumes:
+      - "./Caddyfile:/etc/caddy/Caddyfile:ro"
+      - "${SECBRAIN_TLS_DATA:?SECBRAIN_TLS_DATA is required}:/data"
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /config:size=16m,mode=1777
