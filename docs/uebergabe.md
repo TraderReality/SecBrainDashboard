@@ -72,3 +72,25 @@
 4. Browser-End-to-End-Tests für Loop, Radar, Upload und 3D-Graph bleiben offen.
 5. Der am 21.10.2026 dokumentierte QMD-Abhängigkeitsaudit meldete acht
    transitive Advisories; er wurde in dieser Korrektur nicht neu bewertet.
+
+## HTTPS-Nachtrag vom 22.10.2026
+
+- Der Nutzer hat die NAS-IP ohne eigenen Domainnamen gewählt. Auf dem
+  Feature-Branch ist ein Caddy-Proxy auf `192.168.0.79:18443` vorbereitet;
+  der direkte Main-App-Port wird fest auf NAS-Loopback begrenzt.
+- Caddy `2.11.7-alpine` ist per Image-Digest gepinnt. Seine lokale CA liegt
+  dauerhaft unter dem externen `SECBRAIN_TLS_DATA`. Nur das öffentliche
+  `root.crt` darf an Clients verteilt werden.
+- Isolierter NAS-Test `secbrain-tls-check` auf Port `18444`: HTTPS mit
+  verifiziertem Test-CA-Zertifikat, `/healthz` HTTP 200, ohne Anmeldung
+  Oberfläche und API HTTP 401, mit Anmeldung Architektur `SOURCE_ONLY` und
+  QMD `available: true` für Collection `secbrain-tls-check-20261022`.
+  Die anfängliche TLS-Störung bei Clients ohne SNI wurde mit `default_sni`
+  behoben und danach erneut erfolgreich geprüft.
+- Der Test benutzte nur eine synthetische Vault und Test-Zugangsdaten. NAS-Main
+  und der vorhandene Dev-Dienst wurden nicht verändert. Das MacBook vertraut
+  der isolierten Test-CA nicht systemweit; die Prüfung erfolgte ausdrücklich
+  mit deren CA-Datei.
+- Vor Main-Umschaltung: vollständiges Backup inklusive Caddy-CA-Daten,
+  geschützte Main-/Dev-Zugangsdaten, Compose-Konfigurationsprüfung und
+  Einbindung des produktiven CA-Stammzertifikats auf den genutzten Geräten.

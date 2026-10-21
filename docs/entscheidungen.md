@@ -40,3 +40,16 @@ HTTP Basic für die gesamte Oberfläche und API. Nur der inhaltsarme Endpunkt
 `/healthz` bleibt für den Container-Healthcheck öffentlich. Fehlende
 Zugangsdaten verhindern den App-Start. Wegen der bisherigen HTTP-LAN-Bindung
 ist ein HTTPS-Zugang oder geschützter Tunnel Voraussetzung für Main-Deployment.
+
+## 2026-10-22: HTTPS über NAS-IP und lokale CA
+
+Ein eigener Domainname ist derzeit nicht vorhanden. Das Main-Profil erhält
+deshalb einen separat gepinnten Caddy-Proxy auf `192.168.0.79:18443`, der
+Zertifikate für die NAS-IP mit einer lokalen CA ausstellt. Der direkte
+App-Port wird fest an `127.0.0.1` gebunden; der Proxy erreicht die App über
+das interne Compose-Netz. Der CA-Speicher wird außerhalb des Repositorys
+persistiert und gesichert. Auf jedem Client muss nur das öffentliche
+Stammzertifikat nach Fingerabdruckprüfung vertraut werden. Der private
+CA-Schlüssel bleibt auf dem NAS. Ein isolierter NAS-Test hat HTTPS,
+Authentisierung und QMD zusammen geprüft; Main ist dadurch noch nicht
+umgestellt.

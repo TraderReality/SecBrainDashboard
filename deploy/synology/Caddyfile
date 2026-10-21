@@ -1,0 +1,11 @@
+{
+    auto_https disable_redirects
+    skip_install_trust
+    default_sni {$SECBRAIN_TLS_HOST}
+    admin off
+}
+
+https://{$SECBRAIN_TLS_HOST}:8443 {
+    tls internal
+    reverse_proxy main:8080
+}
