@@ -1,5 +1,35 @@
 # Übergabe
 
+## Hauptsystemprüfung am 22.10.2026
+
+- NAS-Main und NAS-Dev verwenden getrennte Vault- und State-Mounts. Die alte
+  KI-Server-Vault `/home/secbrain/Dokumente/SecBrain` ist laut Nutzer das
+  Governance Layer und gehört weder zu Main noch zu Dev. Ein älterer Watcher
+  auf dem KI-Server läuft nur auf `127.0.0.1:8011`, meldet den Loop als `idle`
+  und verwendet eine getrennte lokale `dev-runtime`-Kopie. Sie ist weder ein
+  Symlink zur Governance-Vault noch mit der NAS-Main-Vault verbunden.
+- Die produktive NAS-Main-Vault hat 87 uncommittete Git-Einträge: 33 geändert,
+  3 gelöscht, 51 neu; nur einer liegt in `01 Inbox`. Der aktuelle
+  `ensure_commit_ready`-Schutz verweigert damit zu Recht einen neuen Loop-Lauf.
+  Diese Nutzerdaten wurden weder geändert noch pauschal committet.
+- Vor einer möglichen Baseline wurde die Main-Vault unter
+  `/volume1/docker/secbrain/backups/secbrain-main-vault-before-baseline-20261022.tar.gz`
+  gesichert (SHA-256
+  `4ab35575fe27988dca71642eb610a8c8ac84c1544af2fa1221b2e2c1b89335b9`,
+  Modus 0600). Alle 304 regulären Archivdateien stimmten per SHA-256 mit dem
+  Live-Bestand überein. Das Archiv enthält Nutzerdaten und bleibt auf dem NAS.
+- Ein separater Codefehler wurde behoben: Loop-Vorschläge der Stationen 01–05
+  werden vor der Freigabe im State statt in der Vault abgelegt. Ablehnung lässt
+  die Vault unverändert; erst Freigabe kopiert den Vorschlag in die Vault.
+  66 Python-Tests und 3 Subtests bestanden. Ein isolierter NAS-Dev-Container
+  prüfte Ablehnung ohne Vault-Änderung und Freigabe mit Archivierung und
+  Git-Commit. Healthcheck, Authentisierung und QMD waren grün. Testcontainer,
+  Testimage und Testdaten wurden danach entfernt. NAS-Main und bestehender
+  NAS-Dev-Dienst blieben gesund.
+- Der Codefix ist noch nicht auf NAS-Main ausgerollt. Vor einem produktiven
+  Loop-Lauf müssen die 87 bestehenden Vault-Änderungen einzeln eingeordnet und
+  als eigener, geprüfter Baseline-Stand gesichert werden.
+
 ## Produktivstand am 22.10.2026
 
 - Die produktive App stammt aus PR #3 (Merge-Commit

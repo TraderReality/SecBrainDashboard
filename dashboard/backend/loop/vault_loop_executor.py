@@ -24,6 +24,10 @@ class VaultLoopExecutor:
         self.archive = self.vault / "06 Archiv"
         self.knowledge = self.vault / "08 KI-Wissensbank"
         self.proposals = self.knowledge / "_Vorschlaege"
+        state_root = Path(os.environ.get("SECBRAIN_WATCHER_STATE_DIR") or Path.home() / ".local/state/secbrain-watcher")
+        self.pending_proposals = state_root.expanduser().resolve() / "loop-proposals"
+        if self.vault == self.pending_proposals or self.vault in self.pending_proposals.parents:
+            raise ValueError("Der Watcher-State muss außerhalb der Vault liegen.")
 
     def snapshot_inbox(self) -> list[dict[str, Any]]:
         inputs = []
@@ -111,8 +115,8 @@ class VaultLoopExecutor:
     def create_proposal(
         self, run_id: str, goal: str, author: str, inputs: list[dict[str, Any]], results: list[dict[str, Any]]
     ) -> dict[str, Any]:
-        self.proposals.mkdir(parents=True, exist_ok=True)
-        path = self.proposals / f"Watcher-Vorschlag-{run_id}.md"
+        self.pending_proposals.mkdir(parents=True, exist_ok=True, mode=0o700)
+        path = self.pending_proposals / f"Watcher-Vorschlag-{run_id}.md"
         files = "\n".join(f"- `{item['name']}` ({item['size']} Byte)" for item in inputs)
         analysis = "\n\n".join(
             f"### Station {item['station_id']:02d} – {item['station']}\n\n{item['output']}"
@@ -133,13 +137,21 @@ class VaultLoopExecutor:
             "4. Den freigegebenen Lauf atomar committen.\n\n"
             f"## Stationsanalyse\n\n{analysis}\n"
         )
-        path.write_text(content, encoding="utf-8")
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(content)
         return {"path": str(path), "files": [item["name"] for item in inputs]}
 
     def reject(self, proposal: dict[str, Any]) -> None:
         self._set_proposal_status(Path(proposal["path"]), "abgelehnt")
 
     def apply(self, inputs: list[dict[str, Any]], proposal: dict[str, Any], author: str = "") -> dict[str, Any]:
+        pending_path = Path(proposal["path"]).resolve()
+        if pending_path.parent != self.pending_proposals or not pending_path.is_file():
+            raise RuntimeError("Der freigegebene Vorschlag fehlt im getrennten Watcher-State.")
+        approved_path = self.proposals / pending_path.name
+        if approved_path.exists():
+            raise RuntimeError(f"Freigegebener Vorschlag existiert bereits: {approved_path.name}")
         self.archive.mkdir(parents=True, exist_ok=True)
         self.knowledge.mkdir(parents=True, exist_ok=True)
         created: list[str] = []
@@ -166,17 +178,20 @@ class VaultLoopExecutor:
             created.append(str(note))
             archived.append(str(target))
 
-        self._set_proposal_status(Path(proposal["path"]), "umgesetzt")
+        self.proposals.mkdir(parents=True, exist_ok=True)
+        approved_path.write_text(pending_path.read_text(encoding="utf-8"), encoding="utf-8")
+        self._set_proposal_status(approved_path, "umgesetzt")
         log_path = self.knowledge / "_Log.md"
         log_entry = (
             f"\n- {datetime.now().astimezone().isoformat(timespec='seconds')} · Watcher: "
             f"{len(archived)} freigegebene Inbox-Datei(en) unverändert archiviert, "
-            f"{len(created)} Quellenseite(n) angelegt; Vorschlag `{Path(proposal['path']).name}` umgesetzt.\n"
+            f"{len(created)} Quellenseite(n) angelegt; Vorschlag `{approved_path.name}` umgesetzt.\n"
         )
         previous_log = log_path.read_text(encoding="utf-8") if log_path.exists() else "# Log\n"
         log_path.write_text(previous_log.rstrip() + "\n" + log_entry, encoding="utf-8")
         index = self._run_indexer()
-        commit = self._commit_run(Path(proposal["path"]).stem)
+        commit = self._commit_run(approved_path.stem)
+        self._set_proposal_status(pending_path, "umgesetzt")
         return {
             "created": created, "archived": archived, "log": str(log_path),
             "indexer": index, "commit": commit,

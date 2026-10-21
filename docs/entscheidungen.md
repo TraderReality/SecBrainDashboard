@@ -51,5 +51,13 @@ das interne Compose-Netz. Der CA-Speicher wird außerhalb des Repositorys
 persistiert und gesichert. Auf jedem Client muss nur das öffentliche
 Stammzertifikat nach Fingerabdruckprüfung vertraut werden. Der private
 CA-Schlüssel bleibt auf dem NAS. Ein isolierter NAS-Test hat HTTPS,
-Authentisierung und QMD zusammen geprüft; Main ist dadurch noch nicht
+Authentisierung und QMD zusammen geprüft. Main wurde anschließend auf HTTPS
 umgestellt.
+
+## 2026-10-22: Loop-Vorschläge bis zur Freigabe im State halten
+
+Die Stationen 01–05 schreiben ihren Vorschlag in den getrennten Watcher-State.
+Eine Ablehnung verändert den Vault nicht. Erst nach Station-06-Freigabe wird
+der Vorschlag zusammen mit den freigegebenen Änderungen im Vault abgelegt und
+committet. So erzeugt die Analyse keine ungesicherten Vault-Änderungen und
+blockiert spätere Läufe nicht selbst.

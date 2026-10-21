@@ -53,6 +53,10 @@ auf den Menschen. Nach Freigabe übernimmt Code die Stationen 07–12:
 
 Ein Lauf verweigert den Start, wenn außerhalb von `01 Inbox` ungesicherte
 Vault-Änderungen bestehen.
+Unfreigegebene Loop-Vorschläge liegen im getrennten Watcher-State unter
+`loop-proposals/`. Bei Ablehnung bleibt die Vault unverändert; erst nach
+Freigabe wird eine Kopie des Vorschlags mit den übernommenen Quellen im Vault
+protokolliert.
 
 ## Wissensradar
 
