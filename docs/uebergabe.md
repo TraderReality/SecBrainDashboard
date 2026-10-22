@@ -1,5 +1,29 @@
 # Übergabe
 
+## Folgefehler beim produktiven Loop am 22.10.2026
+
+- Nach PR #8 (Merge `43e9897`) und gesichertem NAS-Main-Rollout durchlief
+  der Browser-Lauf `WL-5D833260` Stationen 01–06. Vor der Freigabe war nur
+  die Testnotiz in `01 Inbox` unversioniert; der Vorschlag lag mit Modus 0600
+  im State. Nach der Freigabe archivierte der Watcher die Notiz und legte
+  Quellenseite, Vault-Vorschlag und Logeintrag an. Der Indexer stoppte wegen
+  seines alten Standardpfads `/home/secbrain/Dokumente/SecBrain` auf dem
+  schreibgeschützten NAS-Container; es erfolgte kein Vault-Commit.
+- Der aktuelle Teilstand im Main-Vault wird anhand der Testartefakte
+  kontrolliert auf den Zustand vor der Freigabe zurückgesetzt, danach läuft
+  derselbe Browser-Test erneut. Eine Sicherung von Quellstand, Vault und
+  State liegt unter
+  `/volume1/docker/secbrain/backups/secbrain-main-pre-ollama-fix-20261022.tar.gz`
+  (SHA-256 `ed77eb9637cd8f860d857f6d667bbed52e34c88ffc6e11d3bd90e745be93e006`,
+  Modus 0600). Das vorige Image trägt den Tag
+  `secbrain-dashboard:rollback-before-ollama-fix-20261022`.
+- Der Watcher setzt künftig `SECBRAIN_VAULT` explizit auf seinen aktiven
+  Vault-Pfad und `SECBRAIN_QMD_EMBED=0` für die vorhandene BM25-Laufzeit.
+  Ein Regressionstest scheiterte vor dem Fix und bestand danach; insgesamt
+  bestanden 68 Tests und 3 Subtests. Ein isolierter NAS-Container führte
+  das echte Vault-Indexer-Skript mit separatem Vault und State aus. Graph,
+  Suchindex und eigene QMD-Kollektion wurden erfolgreich erstellt.
+
 ## Produktiver Browser-Loop und Ollama-Fix am 22.10.2026
 
 - Die interne Testnotiz `SECBrain-Loop-Browser-Test-2026-10-22.md` wurde über

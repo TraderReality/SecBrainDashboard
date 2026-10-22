@@ -2,6 +2,14 @@
 
 Kurze Einträge: Datum, Entscheidung, Grund.
 
+## 2026-10-22: Indexer auf den aktiven Vault festlegen
+
+Der Watcher setzt beim Start des Vault-Indexers `SECBRAIN_VAULT` auf seinen
+aktiven Vault-Pfad. Sonst verwendet das migrierte Indexer-Skript den alten
+KI-Server-Pfad des Governance Layers. Für das NAS wird nur der QMD-BM25-Index
+aktualisiert; `SECBRAIN_QMD_EMBED=0` verhindert einen unkonfigurierten
+Vektor-Modell-Download.
+
 ## 2026-10-22: Sichtbare Ollama-Chatantwort für den Watcher anfordern
 
 Der Ollama-Chataufruf setzt `think: false`. Beim produktiven Loop-Test lieferte
