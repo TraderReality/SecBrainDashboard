@@ -1,5 +1,25 @@
 # Übergabe
 
+## Produktiver Browser-Loop und Ollama-Fix am 22.10.2026
+
+- Die interne Testnotiz `SECBrain-Loop-Browser-Test-2026-10-22.md` wurde über
+  die produktive HTTPS-Weboberfläche nach `01 Inbox` geladen. SHA-256 von
+  Upload und lokaler Vorlage stimmen überein. Der Lauf `WL-CE57F499` stoppte
+  an Station 01 mit „Ollama hat keine Chat-Antwort geliefert“; der Vault hatte
+  danach ausschließlich die unversionierte Testnotiz, keine Vorschlagsdatei.
+- Main zeigte bereits auf den richtigen KI-Server `192.168.0.116:11434` und
+  das dort installierte Modell `smtek/Qwen3.8-27B:Q2_K_XL`. Der echte Prompt
+  von Station 01 ergab ohne `think: false` nur `thinking` (512 von 512
+  Ausgabetokens), mit `think: false` einen sichtbaren `content` (332 Tokens).
+- Der Connector fordert deshalb sichtbare Chatantworten mit `think: false`
+  an. Ein Regressionstest reproduzierte den Fehler vor dem Fix. Danach
+  bestanden lokal 67 Tests und 3 Subtests. Ein isolierter NAS-Container mit
+  dem geänderten Connector erhielt vom bisherigen Modell auf einen 5267
+  Zeichen langen Prompt eine sichtbare Antwort.
+- Als Nächstes: Code per PR nach `main` bringen, NAS-Main mit Sicherung
+  aktualisieren und denselben Browser-Loop bis zur Freigabe und zum Abschluss
+  durchspielen. Die Testnotiz bleibt bis dahin in der Main-Inbox.
+
 ## Hauptsystemprüfung am 22.10.2026
 
 - NAS-Main und NAS-Dev verwenden getrennte Vault- und State-Mounts. Die alte
