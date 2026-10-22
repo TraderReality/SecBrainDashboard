@@ -94,6 +94,19 @@ Kollektionslabel und `/usr/local/bin/qmd` melden. Erst danach darf ein
 separater Main-Änderungsprozess geplant werden. Dieses Repository-Update
 deployed weder Main noch Dev automatisch.
 
+Für einen Vault mit Git einmalig eine lokale Autorenkennung im laufenden
+App-Container setzen und vor einem Loop-Lauf prüfen. Die Kennung gehört nur
+zum jeweiligen Vault-Repository; sie ändert keine globale Git-Konfiguration:
+
+```bash
+docker compose --env-file "$config" --profile main exec main \
+  git -C /vault config --local user.name "SECBrain Watcher"
+docker compose --env-file "$config" --profile main exec main \
+  git -C /vault config --local user.email "watcher@local.invalid"
+docker compose --env-file "$config" --profile main exec main \
+  git -C /vault var GIT_AUTHOR_IDENT
+```
+
 Für Main zusätzlich `https-main` im selben Compose-Projekt starten. Nach dem
 ersten TLS-Aufruf das öffentliche CA-Zertifikat aus
 `$SECBRAIN_TLS_DATA/caddy/pki/authorities/local/root.crt` exportieren und den
