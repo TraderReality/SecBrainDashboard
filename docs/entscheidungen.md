@@ -2,6 +2,84 @@
 
 Kurze Einträge: Datum, Entscheidung, Grund.
 
+## 2026-10-22: Vault-Scanner und gemeinsame Schreibprüfung
+
+Der Scanner vergleicht SHA-256-Inventare mit dem letzten vollständig geprüften
+Stand. Der erste vollständige Scan legt die Basis an; unvollständige Versuche
+behalten die vorherige Basis. Die Ansicht zeigt Vergleichsbasis, jüngsten Versuch,
+Fortschritt, neue/geänderte/entfernte Dateien sowie technische und KI-Befunde
+getrennt. Bei Modellfehler, unklarem Urteil, fehlendem Bericht oder ausstehender
+App-Übernahme bleibt die Anzeige ohne grünen Gesamterfolg. Scanner- und Laufstatus
+lesen dafür auch den dauerhaften Übernahmemarker; ein nach Neustart ruhender
+Orchestrator hebt ihn nicht auf. Ein nicht lesbarer Markerstatus bleibt unklar.
+Die Statusabfrage endet
+nach höchstens 120 Abfragen mit je 2 Sekunden Abstand; „Aktualisieren“ setzt sie fort.
+
+Unveränderliche JSON-Berichte liegen in der aktiven Vault unter
+`09 Werkzeuge/Scanner-Berichte/`. Ein begrenzter Vault-Git-Commit enthält nur den
+neuen Bericht; fremde gestagte und ungesicherte Änderungen bleiben erhalten.
+Erst nach dauerhaft veröffentlichtem Bericht und Commit wird eine vollständige
+Vergleichsbasis freigegeben. Der Bericht ist eine eng begrenzte Systemoperation,
+kein allgemeiner Weg an der Schreibprüfung vorbei. Er enthält Hashes und
+Befunde, keine Kopien roher Dokumentinhalte.
+
+Der gemeinsame `VaultWriteGuard` prüft konkrete Änderungen und die vollständige
+AGENTS-Regelquelle vor Inbox-/Radar-Übernahme, Upload, DokuLader und AGENTS-Speichern.
+Verstöße oder Unklarheit sperren diese App-Schreibwege (fail closed); externe
+Programme unterliegen dieser Sperre nicht. KI-Bewertung bietet keine absolute
+Garantie semantischer Regelkonformität. Der Scanner ist eine Momentaufnahme.
+
+Materielle Grenze dieses Stands: echte PDF-/ZIP-Dateien, andere binäre,
+übergroße oder für das Modell unverarbeitbare Inhalte sind nicht vollständig
+bewertbar. Betroffene App-Übernahmen antworten mit HTTP 409 ohne Vault-Schreibzugriff.
+Da die Prüfung den vorhandenen Vault-Kontext einbezieht, können solche Bestände
+oder ausgeschöpfte Modellbudgets auch fachlich unbeteiligte Änderungen sperren.
+
+Der Branch baut auf der Validierung aus PR #13 auf; diese Abhängigkeit muss bei
+Integration berücksichtigt werden. Kein Merge und kein NAS-Main-Rollout sind
+Teil dieser Umsetzung. Für den zunächst fehlenden Vault-Indexer ist inzwischen
+ein geprüfter Paket-Fallback vorhanden (siehe folgende Entscheidung).
+
+## 2026-10-22: Fehlenden Vault-Indexer durch Paket-Fallback ergänzen
+
+`09 Werkzeuge/indexer.py` bleibt bei Vorhandensein maßgeblich. Nur wenn diese
+Datei fehlt, führt der Watcher `dashboard/backend/loop/vault_indexer.py` aus;
+fehlen beide Dateien, benennt die Fehlermeldung beide Pfade. Ein fehlerhaftes
+Vault-Skript wird nicht durch den Fallback übergangen. Es gibt keine Migration
+oder Skriptkopie in die Vault.
+
+Die vom Nutzer gelieferte lesbare Quelle vom 23.08.2026 wurde mit dokumentierter
+SHA-256 übernommen und um den ausdrücklichen Ausschluss des gesamten relativen
+Ordners `09 Werkzeuge/Scanner-Berichte/` ergänzt. Der Ausschluss gilt für alle
+aus diesem Inventar erzeugten Sichten einschließlich QMD-Manifest; echte
+isolierte Subprozess-Tests prüfen JSON-Bericht, Markdown-Köder und reguläre
+Notizen. Neue QMD-Kollektionen erhalten explizit die Markdown-Maske `**/*.md`.
+Die unabhängige QMD-Dateisuche und bestehende QMD-Konfiguration werden nicht
+umgebaut; die Maske schließt JSON-Berichte aus, aber keine dort abgelegten
+Markdown-Dateien. Vorhandene Vault-Skripte benötigen ihre eigene Prüfung.
+
+Die externe Quelldatei bleibt unverändert, die mitgelieferte `.pyc` wird nicht
+ausgeführt. Diese Umsetzung bestätigt keine aktuelle NAS-Indexer-Version und
+ist noch nicht auf NAS-Main ausgerollt. Eine später verfügbare neuere Quelle
+kann andere Export- oder QMD-Eigenschaften haben; vor einem Austausch müssen
+diese verglichen werden. Herkunft und Testnachweis stehen in der Übergabe und
+im Indexer-Fallback-Bericht.
+
+## 2026-10-22: Validierung des letzten abgeschlossenen Laufs vorbereiten
+
+Die erste bedienbare Validierungsansicht bezieht sich auf den letzten erfolgreichen
+Inbox- oder Wissensradar-Lauf. Sie zeigt den gespeicherten Übernahmenachweis und
+prüft auf Anforderung Dateien, Commit, Indexer-Export und QMD erneut lesend.
+Ein dauerhafter Marker verhindert nach einem Prozessabbruch einen irreführenden
+grünen Altstatus. Ein neuer erfolgreicher Lauf ersetzt den Nachweis; nach
+einem kontrolliert fehlgeschlagenen Lauf bleibt der vorherige erhalten.
+Ein späterer Lauf kann den Indexer-Export ändern; die Ansicht kennzeichnet
+dies als Änderung seit dem geprüften Lauf, nicht als damaligen Indexer-Fehler.
+Der abgestimmte Entwurf steht unter
+`docs/superpowers/specs/2026-10-22-letzten-lauf-validieren-design.md` und wurde
+vom Nutzer freigegeben. Der Umsetzungsplan liegt unter
+`docs/superpowers/plans/2026-10-22-letzten-lauf-validieren.md`.
+
 ## 2026-10-22: Geprüften Watcher nach Main übernehmen
 
 Nach Abschlussreview, bestandenem Testlauf und ausdrücklicher Freigabe wurde

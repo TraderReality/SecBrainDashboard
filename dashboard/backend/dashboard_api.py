@@ -8,20 +8,27 @@ SECBrain <-> Ollama Integration
 import base64
 import binascii
 import json
+import hashlib
+import stat
 import os
 import re
-import tempfile
 import time
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
+from scanner.service import VaultScanner, ScannerBusyError
+from scanner.report_store import ReportStoreError
+from scanner.write_guard import PlannedChange, RuleBlocked, VaultWriteGuard
+from scanner.inventory import _open_root, _FILE_FLAGS
 from access_control import BasicAuthMiddleware, validate_auth_configuration
 from runtime.runtime_manager import RuntimeManager
 from guardian_rules import chat_context, for_station, free_chat_context
-from dokulader_service import import_package, import_pdf, import_urls
+from dokulader_service import (import_package, import_pdf, import_urls, _atomic_new_file,
+                               _atomic_replace_file, _remove_file)
 from knowledge_radar_service import analyze_knowledge_gaps
 from knowledge_ai_service import evaluate_candidate, evaluate_research
 from knowledge_research_service import create_integration_proposal, load_integration_proposal, research_candidate
@@ -74,9 +81,73 @@ watcher_orchestrator = WatcherLoopOrchestrator(
 knowledge_growth_scheduler = KnowledgeGrowthScheduler(runtime.vault.path)
 
 
+_scanner_instance = None
+_scanner_key = None
+_scanner_lock = threading.Lock()
+
+
+def vault_write_guard():
+    configured = os.environ.get("SECBRAIN_WATCHER_STATE_DIR", "").strip()
+    state_dir = Path(configured).expanduser() if configured else Path.home() / ".local/state/secbrain-watcher"
+    return VaultWriteGuard(runtime.vault.path, state_dir.resolve(), runtime.ollama.chat,
+                           lambda: runtime.ollama.get_config().get("model", ""))
+
+
+def vault_scanner():
+    global _scanner_instance, _scanner_key
+    configured = os.environ.get("SECBRAIN_WATCHER_STATE_DIR", "").strip()
+    state_dir = Path(configured).expanduser() if configured else Path.home() / ".local/state/secbrain-watcher"
+    key = (str(runtime.vault.path), str(state_dir))
+    with _scanner_lock:
+        if _scanner_instance is None or _scanner_key != key:
+            _scanner_instance = VaultScanner(runtime.vault.path, state_dir, runtime.ollama.chat,
+                                            lambda: runtime.ollama.get_config().get("model", ""))
+            _scanner_key = key
+        return _scanner_instance
+
+
+def app_write_pending():
+    """Read the durable takeover marker even after an idle orchestrator restart."""
+    try:
+        pending = watcher_orchestrator.validation.status().get("pending")
+    except (OSError, ValueError, TypeError):
+        return None
+    return pending if isinstance(pending, bool) else None
+
+
+@app.get("/api/scanner/status")
+def scanner_status():
+    try:
+        result = vault_scanner().status()
+    except (ReportStoreError, OSError):
+        result = {"state": "incomplete", "last_complete": None, "last_attempt": None,
+                  "overall": "unklar", "progress": {"phase": "idle", "completed": 0, "total": 0},
+                  "message": "nicht vollständig geprüft: Scanner-Zustand nicht verfügbar."}
+    return {**result, "app_write_pending": app_write_pending()}
+
+
+@app.post("/api/scanner/scan")
+def scanner_start():
+    try:
+        return vault_scanner().start()
+    except ScannerBusyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (ReportStoreError, OSError) as exc:
+        raise HTTPException(status_code=503, detail="Scanner-Lauf konnte nicht gestartet werden.") from exc
+
+
+@app.get("/api/scanner/reports/{scan_id}")
+def scanner_report(scan_id: str):
+    try:
+        return vault_scanner().report(scan_id)
+    except (ReportStoreError, OSError, KeyError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail="Scanner-Bericht nicht verfügbar.") from exc
+
+
 def watcher_status() -> dict:
     state = watcher_loop.status()
     state["orchestration"] = watcher_orchestrator.status()
+    state["app_write_pending"] = app_write_pending()
     return state
 
 
@@ -242,7 +313,7 @@ def safe_inbox_filename(filename: str) -> str:
     return name
 
 
-def write_inbox_upload(filename: str, content_base64: str) -> dict:
+def write_inbox_upload(filename: str, content_base64: str, guard: VaultWriteGuard) -> dict:
     name = safe_inbox_filename(filename)
     try:
         content = base64.b64decode(content_base64 or "", validate=True)
@@ -258,20 +329,13 @@ def write_inbox_upload(filename: str, content_base64: str) -> dict:
         raise ValueError("Die Markdown-Datei muss UTF-8-kodiert sein.") from exc
 
     inbox = runtime.vault.path / "01 Inbox"
-    inbox.mkdir(parents=True, exist_ok=True)
     target = inbox / name
     if target.exists():
         raise FileExistsError(f"{name} existiert bereits in der Inbox.")
 
-    descriptor, temporary_name = tempfile.mkstemp(prefix=".upload-", suffix=".tmp", dir=inbox)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.link(temporary_name, target)
-    finally:
-        Path(temporary_name).unlink(missing_ok=True)
+    changes = [PlannedChange(f"01 Inbox/{name}", "create", None, content)]
+    with guard.authorize(changes, approval=None):
+        _atomic_new_file(target, changes[0].after_bytes)
     return {"status": "uploaded", "filename": name, "bytes": len(content)}
 
 
@@ -296,8 +360,9 @@ def vault_inbox_upload(payload: dict):
         return write_inbox_upload(
             str(payload.get("filename") or ""),
             str(payload.get("content_base64") or ""),
+            vault_write_guard(),
         )
-    except FileExistsError as exc:
+    except (RuleBlocked, FileExistsError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -309,7 +374,9 @@ def dokulader_urls(payload: dict):
     if not isinstance(urls, list):
         raise HTTPException(status_code=400, detail="URLs müssen als Liste übergeben werden.")
     try:
-        return import_urls(runtime.vault.path, [str(url) for url in urls])
+        return import_urls(runtime.vault.path, [str(url) for url in urls], vault_write_guard())
+    except (RuleBlocked, FileExistsError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -321,8 +388,9 @@ def dokulader_package(payload: dict):
             runtime.vault.path,
             str(payload.get("filename") or ""),
             str(payload.get("content_base64") or ""),
+            vault_write_guard(),
         )
-    except FileExistsError as exc:
+    except (RuleBlocked, FileExistsError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -335,8 +403,9 @@ def dokulader_pdf(payload: dict):
             runtime.vault.path,
             str(payload.get("filename") or ""),
             str(payload.get("content_base64") or ""),
+            vault_write_guard(),
         )
-    except FileExistsError as exc:
+    except (RuleBlocked, FileExistsError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -423,15 +492,32 @@ def agents_md_write(payload: dict):
         )
 
     try:
-        backup = target.with_name(
-            target.name + f".bak-{int(time.time() * 1000)}"
-        )
-        backup.write_text(
-            target.read_text(encoding="utf-8"),
-            encoding="utf-8",
-        )
-        target.write_text(content, encoding="utf-8")
-
+        # Read the preimage without following a substituted rule-source symlink.
+        root = _open_root(runtime.vault.path)
+        try:
+            descriptor = os.open("AGENTS.md", _FILE_FLAGS, dir_fd=root)
+            with os.fdopen(descriptor, "rb") as handle:
+                if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                    raise RuleBlocked("AGENTS.md ist keine reguläre Datei.")
+                before = handle.read()
+        finally:
+            os.close(root)
+        backup = target.with_name(target.name + f".bak-{int(time.time() * 1000)}.md")
+        changes = [
+            PlannedChange(backup.name, "create", None, before),
+            PlannedChange("AGENTS.md", "replace", hashlib.sha256(before).hexdigest(), content.encode("utf-8")),
+        ]
+        # The authenticated save action explicitly approves this exact preimage
+        # and proposed replacement. The guard still evaluates old and new rules.
+        with vault_write_guard().authorize(changes, approval="agents-editor-save"):
+            installed_backup = _atomic_new_file(backup, changes[0].after_bytes)
+            try:
+                _atomic_replace_file(target, changes[1].after_bytes, changes[1].before_sha256)
+            except Exception:
+                _remove_file(backup, installed_backup)
+                raise
+    except (RuleBlocked, FileExistsError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except OSError as exc:
         raise HTTPException(
             status_code=502,
@@ -577,6 +663,20 @@ def station_guardian_rule(station_id: int):
 def watcher_loop_status():
 
     return watcher_status()
+
+
+@app.get("/api/validation/last")
+def last_run_validation():
+    """Show durable evidence for the last successfully approved run."""
+    return watcher_orchestrator.validation.status()
+
+
+@app.post("/api/validation/last/recheck")
+def recheck_last_run_validation():
+    """Compare the current Vault and retrieval status without changing them."""
+    if watcher_orchestrator.is_active():
+        raise HTTPException(status_code=409, detail="Ein Watcher-Lauf ist aktiv. Bitte später erneut prüfen.")
+    return watcher_orchestrator.validation.recheck(retrieval_status())
 
 
 @app.post("/api/watcher-loop/autonomous/start")

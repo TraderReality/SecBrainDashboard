@@ -84,11 +84,16 @@ def test_authentication_covers_reads_and_writes(protected_app):
 
 def test_watcher_app_protects_frontend_and_api(monkeypatch, tmp_path):
     import dashboard_api
+    from scanner.test_write_guard import passing_chat
 
     monkeypatch.setenv("SECBRAIN_AUTH_REQUIRED", "1")
     monkeypatch.setenv("SECBRAIN_HTTP_USER", "tester")
     monkeypatch.setenv("SECBRAIN_HTTP_PASSWORD", "local-test-password")
-    monkeypatch.setattr(dashboard_api.runtime.vault, "path", tmp_path)
+    monkeypatch.setattr(dashboard_api.runtime.vault, "path", tmp_path.resolve())
+    (tmp_path / "AGENTS.md").write_text("Keep notes sourced.\n")
+    monkeypatch.setenv("SECBRAIN_WATCHER_STATE_DIR", str(tmp_path.parent / (tmp_path.name + "-state")))
+    monkeypatch.setattr(dashboard_api.runtime.ollama, "chat", passing_chat)
+    monkeypatch.setattr(dashboard_api.runtime.ollama, "get_config", lambda: {"model": "local"})
 
     upload = {"filename": "Authentifiziert.md", "content_base64": base64.b64encode(b"# Test\n").decode()}
 

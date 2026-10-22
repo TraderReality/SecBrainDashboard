@@ -3,6 +3,7 @@ import io
 import tempfile
 import unittest
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -42,10 +43,35 @@ def package_bytes(files=100, unsafe=False):
     return output.getvalue()
 
 
+class RecordingGuard:
+    """Verify the writer contract without pretending binary AI support exists."""
+    def __init__(self, vault):
+        self.vault = vault
+        self.calls = []
+        self.active = False
+
+    @contextmanager
+    def authorize(self, changes, approval):
+        before = {p.relative_to(self.vault).as_posix(): p.read_bytes()
+                  for p in self.vault.rglob("*") if p.is_file()}
+        assert all(c.operation == "create" and c.before_sha256 is None for c in changes)
+        assert not any(c.relative_path in before for c in changes)
+        self.calls.append(changes)
+        self.active = True
+        try:
+            yield
+            after = {p.relative_to(self.vault).as_posix(): p.read_bytes()
+                     for p in self.vault.rglob("*") if p.is_file()}
+            assert after == {**before, **{c.relative_path: c.after_bytes for c in changes}}
+        finally:
+            self.active = False
+
+
 class DokuLaderServiceTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.vault = Path(self.temp.name)
+        self.vault = Path(self.temp.name).resolve()
+        self.guard = RecordingGuard(self.vault)
 
     def tearDown(self):
         self.temp.cleanup()
@@ -53,7 +79,7 @@ class DokuLaderServiceTest(unittest.TestCase):
     def test_package_creates_one_manifest_and_preserves_archive(self):
         raw = package_bytes()
         result = dokulader_service.import_package(
-            self.vault, "python3.10-docs.zip", base64.b64encode(raw).decode("ascii")
+            self.vault, "python3.10-docs.zip", base64.b64encode(raw).decode("ascii"), self.guard
         )
         manifests = list((self.vault / "01 Inbox").glob("*.md"))
         self.assertEqual(len(manifests), 1)
@@ -64,12 +90,12 @@ class DokuLaderServiceTest(unittest.TestCase):
     def test_package_duplicate_and_unsafe_path_are_rejected(self):
         raw = package_bytes()
         encoded = base64.b64encode(raw).decode("ascii")
-        dokulader_service.import_package(self.vault, "docs.zip", encoded)
+        dokulader_service.import_package(self.vault, "docs.zip", encoded, self.guard)
         with self.assertRaises(FileExistsError):
-            dokulader_service.import_package(self.vault, "docs-copy.zip", encoded)
+            dokulader_service.import_package(self.vault, "docs-copy.zip", encoded, self.guard)
         with self.assertRaises(ValueError):
             dokulader_service.import_package(
-                self.vault, "unsafe.zip", base64.b64encode(package_bytes(unsafe=True)).decode("ascii")
+                self.vault, "unsafe.zip", base64.b64encode(package_bytes(unsafe=True)).decode("ascii"), self.guard
             )
 
     @patch("dokulader_service._convert_pdf_to_pages")
@@ -80,7 +106,7 @@ class DokuLaderServiceTest(unittest.TestCase):
         ]
         raw = b"%PDF-1.7\nTest PDF\n%%EOF"
         encoded = base64.b64encode(raw).decode("ascii")
-        result = dokulader_service.import_pdf(self.vault, "python-3.14-reference.pdf", encoded)
+        result = dokulader_service.import_pdf(self.vault, "python-3.14-reference.pdf", encoded, self.guard)
 
         manifests = list((self.vault / "01 Inbox").glob("*.md"))
         package = self.vault / result["archive"]
@@ -94,23 +120,23 @@ class DokuLaderServiceTest(unittest.TestCase):
         self.assertIn("**PDF-Seiten:** 101", manifest_text)
 
         with self.assertRaises(FileExistsError):
-            dokulader_service.import_pdf(self.vault, "duplicate.pdf", encoded)
+            dokulader_service.import_pdf(self.vault, "duplicate.pdf", encoded, self.guard)
 
     def test_pdf_rejects_wrong_extension_and_invalid_magic(self):
         encoded = base64.b64encode(b"not a pdf").decode("ascii")
         with self.assertRaises(ValueError):
-            dokulader_service.import_pdf(self.vault, "manual.pdf", encoded)
+            dokulader_service.import_pdf(self.vault, "manual.pdf", encoded, self.guard)
         valid = base64.b64encode(b"%PDF-1.7\n%%EOF").decode("ascii")
         with self.assertRaises(ValueError):
-            dokulader_service.import_pdf(self.vault, "../manual.pdf", valid)
+            dokulader_service.import_pdf(self.vault, "../manual.pdf", valid, self.guard)
 
     @patch("dokulader_service._validated_web_url", side_effect=lambda url: url)
     @patch("dokulader_service.requests.get")
     def test_url_import_uses_one_request_and_blocks_duplicate(self, get, _validate):
         html = "<html><title>Python Test</title><main>" + ("Dokumentation " * 30) + "</main></html>"
         get.return_value = FakeResponse(html)
-        first = dokulader_service.import_urls(self.vault, ["https://docs.example.org/start"])
-        second = dokulader_service.import_urls(self.vault, ["https://docs.example.org/start"])
+        first = dokulader_service.import_urls(self.vault, ["https://docs.example.org/start"], self.guard)
+        second = dokulader_service.import_urls(self.vault, ["https://docs.example.org/start"], self.guard)
         self.assertEqual(len(first["imported"]), 1)
         self.assertEqual(len(second["skipped"]), 1)
         self.assertEqual(get.call_count, 1)

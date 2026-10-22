@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from threading import Event, Lock, Thread
 from typing import Any, Callable
 
 from guardian_rules import chat_context
+from loop.run_validation import RunValidationService
 from loop.vault_loop_executor import VaultLoopExecutor
 from loop.watcher_loop_runtime import STATION_NAMES, WatcherLoopRuntime
+from scanner.write_guard import VaultWriteGuard
 from vault_retrieval_service import public_retrieval, retrieve_vault_context
 
 
@@ -20,7 +23,11 @@ class WatcherLoopOrchestrator:
     ) -> None:
         self._runtime, self._chat = runtime, chat
         self._retriever = retriever
-        self._executor = VaultLoopExecutor(vault_path)
+        self.validation = RunValidationService(vault_path)
+        guard = VaultWriteGuard(
+            Path(vault_path).resolve(), self.validation.state, chat, lambda: self._model,
+        )
+        self._executor = VaultLoopExecutor(vault_path, guard)
         self._lock, self._stop = Lock(), Event()
         self._thread: Thread | None = None
         self._state, self._goal, self._author, self._model, self._error = "idle", "", "", "", ""
@@ -29,6 +36,7 @@ class WatcherLoopOrchestrator:
         self._proposal: dict[str, Any] | None = None
         self._execution: dict[str, Any] | None = None
         self._retrieval: dict[str, Any] = {}
+        self._validation_error = ""
 
     def start(self, goal: str, model: str, author: str = "") -> dict[str, Any]:
         goal, model = " ".join(str(goal).split()), str(model).strip()
@@ -39,11 +47,12 @@ class WatcherLoopOrchestrator:
             raise ValueError("Für den autonomen Lauf wird eine Aufgabe benötigt.")
         if not model:
             raise ValueError("Für den autonomen Lauf muss ein Modell gewählt sein.")
-        self._executor.ensure_commit_ready()
-        inputs = self._executor.snapshot_inbox()
         with self._lock:
             if self._active_locked() or self._state == "awaiting_approval":
                 raise RuntimeError("Ein Watcher-Lauf ist bereits aktiv oder wartet auf Freigabe.")
+            self._model = model
+            self._executor.ensure_commit_ready()
+            inputs = self._executor.snapshot_inbox()
             self._runtime.start(model)
             self._stop.clear()
             self._state, self._goal, self._author, self._model = "running", goal, author, model
@@ -51,6 +60,7 @@ class WatcherLoopOrchestrator:
             self._proposal = self._execution = None
             self._retrieval = {}
             self._error = ""
+            self._validation_error = ""
             self._thread = Thread(target=self._run_analysis, daemon=True)
             self._thread.start()
             return self._status_locked()
@@ -81,10 +91,14 @@ class WatcherLoopOrchestrator:
     def stage_research_proposal(self, proposal: dict[str, Any], model: str) -> dict[str, Any]:
         if proposal.get("kind") != "knowledge_radar" or not proposal.get("proposal_id"):
             raise ValueError("Ungültiger Wissensradar-Vorschlag.")
-        self._executor.ensure_commit_ready()
+        model = str(model).strip()
+        if not model:
+            raise ValueError("Für den autonomen Lauf muss ein Modell gewählt sein.")
         with self._lock:
             if self._active_locked() or self._state == "awaiting_approval":
                 raise RuntimeError("Ein Watcher-Lauf ist bereits aktiv oder wartet auf Freigabe.")
+            self._model = model
+            self._executor.ensure_commit_ready()
             self._runtime.start_at(model, 6, "Kontrollierter Wissensradar-Vorschlag wurde direkt an Station 06 übergeben.")
             self._state, self._goal, self._author, self._model = (
                 "awaiting_approval", proposal["candidate"]["title"], "Wissensradar", model
@@ -93,6 +107,7 @@ class WatcherLoopOrchestrator:
             self._proposal = dict(proposal)
             self._execution = None
             self._error = ""
+            self._validation_error = ""
             self._results = [{
                 "station_id": 5, "station": STATION_NAMES[4], "next_station": 6,
                 "output": (
@@ -148,9 +163,21 @@ class WatcherLoopOrchestrator:
     def _run_approved(self) -> None:
         try:
             self._complete_code_station(6, "Freigabe wurde ausdrücklich über die Watcher-Oberfläche erteilt.")
-            execution = self._executor.apply(self._inputs, self._proposal or {}, self._author)
+            run_id = str(self._runtime.status()["run_id"])
+            self.validation.begin(run_id, "inbox")
+            try:
+                execution = self._executor.apply(self._inputs, self._proposal or {}, self._author)
+            except Exception:
+                if not self._executor.transaction_journal.exists():
+                    self.validation.abort(run_id)
+                raise
             with self._lock:
                 self._execution = execution
+            try:
+                self.validation.finish(run_id, "inbox", execution, self._inputs, self._proposal)
+            except Exception:
+                with self._lock:
+                    self._validation_error = "Der Lauf wurde übernommen, aber der Prüfnachweis konnte nicht gespeichert werden."
             self._complete_code_station(7, f"{len(execution['archived'])} Rohdatei(en) archiviert und {len(execution['created'])} Quellenseite(n) angelegt.")
             self._complete_code_station(8, "Indexer erfolgreich ausgeführt; abgeleitete Sichten erneuert.")
             self._complete_code_station(9, "Quellenseiten mit Herkunft und Pflege-Loop verknüpft.")
@@ -169,9 +196,21 @@ class WatcherLoopOrchestrator:
     def _run_approved_research(self) -> None:
         try:
             self._complete_code_station(6, "Radar-Einpflegevorschlag wurde ausdrücklich freigegeben.")
-            execution = self._executor.apply_research(self._proposal or {})
+            run_id = str(self._runtime.status()["run_id"])
+            self.validation.begin(run_id, "knowledge_radar")
+            try:
+                execution = self._executor.apply_research(self._proposal or {})
+            except Exception:
+                if not self._executor.transaction_journal.exists():
+                    self.validation.abort(run_id)
+                raise
             with self._lock:
                 self._execution = execution
+            try:
+                self.validation.finish(run_id, "knowledge_radar", execution, [], self._proposal)
+            except Exception:
+                with self._lock:
+                    self._validation_error = "Der Lauf wurde übernommen, aber der Prüfnachweis konnte nicht gespeichert werden."
             target = execution["target"]
             self._complete_code_station(7, f"Freigegebenen Markdown-Inhalt atomar in {target} übernommen.")
             self._complete_code_station(8, "Indexer erfolgreich ausgeführt; abgeleitete Sichten erneuert.")
@@ -260,4 +299,5 @@ class WatcherLoopOrchestrator:
             "completed_stations": len(self._results), "results": self._results[-12:],
             "vault_retrieval": self._retrieval,
             "error": self._error or None,
+            "validation_error": self._validation_error or None,
         }

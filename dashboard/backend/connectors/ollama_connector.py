@@ -410,6 +410,8 @@ class OllamaConnector:
 
         return {
             "model": selected_model,
+            "done": result.get("done"),
+            "done_reason": result.get("done_reason"),
             "message": {
                 "role": "assistant",
                 "content": content,
