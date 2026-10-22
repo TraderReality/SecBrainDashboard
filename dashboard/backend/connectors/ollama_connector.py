@@ -391,6 +391,7 @@ class OllamaConnector:
                 "model": selected_model,
                 "messages": cleaned_messages,
                 "stream": False,
+                "think": False,
                 "keep_alive": self.config.get("keep_alive", "5m"),
                 "options": {
                     "temperature": self.config.get("temperature", 0.2),

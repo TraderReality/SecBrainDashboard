@@ -2,11 +2,26 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from connectors.ollama_connector import OllamaConnector
 
 
 class OllamaDefaultModelTest(unittest.TestCase):
+    def test_chat_requests_visible_output_from_thinking_models(self):
+        connector = OllamaConnector()
+
+        def model_response(endpoint, **kwargs):
+            self.assertEqual(endpoint, "/api/chat")
+            if kwargs["payload"].get("think") is False:
+                return {"message": {"role": "assistant", "content": "Prüfung abgeschlossen."}}
+            return {"message": {"role": "assistant", "content": "", "thinking": "Interne Analyse"}}
+
+        with patch.object(connector, "_request", side_effect=model_response):
+            result = connector.chat([{"role": "user", "content": "Prüfe die Notiz."}], model="qwen-test")
+
+        self.assertEqual(result["message"]["content"], "Prüfung abgeschlossen.")
+
     def test_default_model_is_persisted_and_loaded_as_active_model(self):
         with tempfile.TemporaryDirectory() as directory:
             state_path = Path(directory) / "ollama.json"

@@ -2,6 +2,14 @@
 
 Kurze Einträge: Datum, Entscheidung, Grund.
 
+## 2026-10-22: Sichtbare Ollama-Chatantwort für den Watcher anfordern
+
+Der Ollama-Chataufruf setzt `think: false`. Beim produktiven Loop-Test lieferte
+das bisherige Qwen-Modell für die lange Stationsanweisung nur `thinking`, aber
+keinen `content`, weil `num_predict` ausgeschöpft war. Mit demselben Prompt
+und deaktiviertem Denkmodus lieferte das Modell eine auswertbare Antwort.
+Die Ollama-Adresse auf dem KI-Server war bereits korrekt.
+
 ## 2026-10-20: Gemeinsamer Stand über GitHub
 Alle Geräte (MacBook, KI-Server, Handy, Cloud-Sessions) nutzen denselben Claude-Account
 und das Repo `traderreality/secbraindashboard` als einzige Quelle der Wahrheit.
