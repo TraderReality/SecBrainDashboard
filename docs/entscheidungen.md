@@ -2,6 +2,16 @@
 
 Kurze Einträge: Datum, Entscheidung, Grund.
 
+## 2026-10-22: Geprüften Watcher nach Main übernehmen
+
+Nach Abschlussreview, bestandenem Testlauf und ausdrücklicher Freigabe wurde
+PR #11 gemergt und das exakt getestete Image auf NAS-Main ausgerollt. Eine
+konsistente Sicherung einschließlich TLS-CA entstand bei gestopptem Main und
+Proxy. Das vorige Image und sein Quellbaum bleiben als Rückweg erhalten.
+Wegen der geänderten Freigabe- und Commitstrecke wurde der gesamte
+12-Stationen-Ablauf mit einer markierten Testquelle produktiv geprüft.
+Nachweise und Sicherungsprüfsumme stehen in `docs/uebergabe.md`.
+
 ## 2026-10-22: Freigabe-Fehler mit begrenztem Commit und Rückweg behandeln
 
 Git-Autor und Committer werden vor einem Watcher-Lauf geprüft. Ein Lauf stagiert
