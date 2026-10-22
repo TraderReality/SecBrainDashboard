@@ -1,5 +1,39 @@
 # Übergabe
 
+## Abgeschlossener produktiver Browser-Loop am 22.10.2026
+
+- NAS-Main läuft mit `secbrain-dashboard:a9f498b` aus PR #9, Quellbaum
+  `/volume1/docker/secbrain/secbrain-main/watcher-main-a9f498b`. Alle 109
+  versionierten Dateien stimmten vor dem Build per SHA-256 mit GitHub-`main`
+  überein. HTTPS und Container-Healthcheck sind grün; der angemeldete
+  Retrieval-Endpunkt meldet QMD `available: true`, Collection `secbrain-main`.
+- Der über die Weboberfläche gestartete Lauf `WL-BDC8C469` erreichte nach
+  Station-06-Freigabe alle 12 Stationen und zeigte **FERTIG**. Die Testnotiz
+  wurde bytegleich (SHA-256
+  `2119649a2c63bb9e9ad58bd7f1ed61c8eec8da3b806c8ab4dca34e7423ad9838`)
+  nach `06 Archiv` verschoben. Quellenseite, Vault-Vorschlag, Log und Index
+  wurden erstellt bzw. aktualisiert; die QMD-Indexaktualisierung war erfolgreich.
+  Der lokale Main-Vault-Commit lautet `bdb8bde`; sein Git-Status ist leer.
+  Der freigegebene State-Vorschlag steht auf `umgesetzt` und hat Modus 0600.
+- Vor dem erfolgreichen Lauf schlug der Commit von `WL-1E96406E` wegen einer
+  fehlenden Git-Autorenkennung fehl. Der Teilstand wurde unter
+  `/volume1/docker/secbrain/backups/secbrain-main-pre-commit-retry-20261022.tar.gz`
+  gesichert (SHA-256
+  `f1fc67c5dbd9e4e057d07142052743e4c9a99ced8628ac6a0fcf4a1f59a7860e`,
+  Modus 0600) und kontrolliert zurückgesetzt. Nur für das Main-Vault-Repository
+  wurde `SECBrain Watcher <watcher@local.invalid>` als lokale Git-Identität
+  eingetragen. Die Governance-Vault blieb unberührt.
+- Vor dem Indexer-Fix wurde der damals fehlgeschlagene Teilstand unter
+  `/volume1/docker/secbrain/backups/secbrain-main-partial-loop-20261022.tar.gz`
+  gesichert (SHA-256
+  `69c70053f3901ca47629b7119d2e08c48fb68791a80da38d5a310e37ace3ecb5`,
+  Modus 0600). Vor dem Rollout von PR #9 lag zusätzlich die bereinigte
+  Main-Sicherung unter
+  `/volume1/docker/secbrain/backups/secbrain-main-pre-indexer-fix-20261022.tar.gz`
+  (SHA-256 `3d2898e1ee5a014873159242509a936021bc1857529f00d5cb735d925665073e`,
+  Modus 0600). Das vorige Image ist als
+  `secbrain-dashboard:rollback-before-indexer-fix-20261022` markiert.
+
 ## Folgefehler beim produktiven Loop am 22.10.2026
 
 - Nach PR #8 (Merge `43e9897`) und gesichertem NAS-Main-Rollout durchlief
@@ -9,9 +43,8 @@
   Quellenseite, Vault-Vorschlag und Logeintrag an. Der Indexer stoppte wegen
   seines alten Standardpfads `/home/secbrain/Dokumente/SecBrain` auf dem
   schreibgeschützten NAS-Container; es erfolgte kein Vault-Commit.
-- Der aktuelle Teilstand im Main-Vault wird anhand der Testartefakte
-  kontrolliert auf den Zustand vor der Freigabe zurückgesetzt, danach läuft
-  derselbe Browser-Test erneut. Eine Sicherung von Quellstand, Vault und
+- Der damalige Teilstand im Main-Vault wurde anhand der Testartefakte
+  kontrolliert auf den Zustand vor der Freigabe zurückgesetzt. Eine Sicherung von Quellstand, Vault und
   State liegt unter
   `/volume1/docker/secbrain/backups/secbrain-main-pre-ollama-fix-20261022.tar.gz`
   (SHA-256 `ed77eb9637cd8f860d857f6d667bbed52e34c88ffc6e11d3bd90e745be93e006`,
@@ -40,9 +73,8 @@
   bestanden lokal 67 Tests und 3 Subtests. Ein isolierter NAS-Container mit
   dem geänderten Connector erhielt vom bisherigen Modell auf einen 5267
   Zeichen langen Prompt eine sichtbare Antwort.
-- Als Nächstes: Code per PR nach `main` bringen, NAS-Main mit Sicherung
-  aktualisieren und denselben Browser-Loop bis zur Freigabe und zum Abschluss
-  durchspielen. Die Testnotiz bleibt bis dahin in der Main-Inbox.
+- Der Fix wurde mit PR #8 nach `main` gebracht und auf NAS-Main ausgerollt.
+  Der vollständige Browser-Loop ist oben dokumentiert.
 
 ## Hauptsystemprüfung am 22.10.2026
 
@@ -75,10 +107,10 @@
   Testimage und Testdaten wurden danach entfernt. NAS-Main und bestehender
   NAS-Dev-Dienst blieben gesund.
 - Der Codefix aus PR #6 (Merge `446b8f41fb17ebbd971a7166bf02990ca4b06597`)
-  ist auf NAS-Main ausgerollt. Ein vollständiger produktiver Loop-Lauf durch
-  die Weboberfläche steht als separater End-to-End-Test noch aus.
+  wurde damals auf NAS-Main ausgerollt. Der später abgeschlossene Browser-Test
+  ist oben dokumentiert.
 
-## Aktueller Produktivstand am 22.10.2026
+## Vorheriger Produktivstand nach PR #6 am 22.10.2026
 
 - NAS-Main verwendet den Quellbaum
   `/volume1/docker/secbrain/secbrain-main/watcher-main-446b8f4` und das Image
