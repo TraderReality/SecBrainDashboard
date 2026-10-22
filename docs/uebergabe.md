@@ -1,5 +1,18 @@
 # Übergabe
 
+## Validierung des letzten Laufs (Entwurf vom 22.10.2026)
+
+Der Nutzer hat den Entwurf für eine bedienbare Validierung des letzten
+erfolgreichen Inbox- oder Wissensradar-Laufs bestätigt: gespeicherten Nachweis
+anzeigen und Dateien, Commit, Indexer-Export sowie QMD auf Knopfdruck erneut
+lesend prüfen. Die ausgearbeitete Spezifikation liegt unter
+`docs/superpowers/specs/2026-10-22-letzten-lauf-validieren-design.md` auf dem
+Feature-Branch `codex/validation-last-run` und wurde vom Nutzer freigegeben.
+Der Umsetzungsplan steht unter
+`docs/superpowers/plans/2026-10-22-letzten-lauf-validieren.md`. Nächster Schritt
+ist die Prüfung des Plans und Wahl der Ausführungsmethode durch den Nutzer.
+Produktcode und NAS-Main wurden hierfür noch nicht geändert.
+
 ## Main-Rollout von PR #11 am 22.10.2026 (Schritt 5 abgeschlossen)
 
 - Nach ausdrücklicher Freigabe wurde PR #11 nach `main` gemergt (`a02ee24d58d16cb621f13f9d9461faef5bc321ca`). Der ausgelieferte Quellbaum hat denselben Git-Tree `317881943bfdd71bf7758b64ff3a8e4b6818b661` wie der abschließend getestete Branch. Der erneute lokale Gesamtlauf vor dem Merge bestand mit `83 passed, 3 subtests passed`; `git diff --check` war sauber.
