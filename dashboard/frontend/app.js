@@ -580,12 +580,105 @@ function bindWorkflowControls(){
 }
 
 
+function validationLine(label, value){
+    const row = document.createElement("div");
+    row.className = "validation-line";
+    const name = document.createElement("strong");
+    name.textContent = label;
+    const content = document.createElement("span");
+    content.textContent = value;
+    row.append(name, content);
+    return row;
+}
+
+function renderValidationEvidence(data){
+    const container = document.getElementById("validation-evidence");
+    container.replaceChildren();
+    if (!data.available || !data.evidence) {
+        container.textContent = data.reason || "Kein prüfbarer Lauf vorhanden.";
+        return;
+    }
+    const evidence = data.evidence;
+    const kind = evidence.kind === "knowledge_radar" ? "Wissensradar" : "Inbox";
+    const date = new Date(evidence.completed_at);
+    container.append(
+        validationLine("Lauf", String(evidence.run_id || "–")),
+        validationLine("Art", kind),
+        validationLine("Abschluss", Number.isNaN(date.getTime()) ? "Unbekannt" : date.toLocaleString("de-DE")),
+        validationLine("Indexer beim Lauf", evidence.indexer?.ok ? "Erfolgreich" : "Nicht bestätigt"),
+        validationLine("Vault-Commit", evidence.commit?.ok
+            ? String(evidence.commit.revision || "Kennung fehlt")
+            : String(evidence.commit?.reason || "Kein Commit dokumentiert"))
+    );
+    const heading = document.createElement("h3");
+    heading.textContent = "Geprüfte Dateien";
+    const files = document.createElement("ul");
+    files.className = "validation-files";
+    Object.keys(evidence.files || {}).forEach(path => {
+        const item = document.createElement("li");
+        item.textContent = path;
+        files.append(item);
+    });
+    container.append(heading, files);
+}
+
+function renderValidationCurrent(data){
+    const container = document.getElementById("validation-current");
+    container.replaceChildren();
+    if (!data.available || data.pending) {
+        container.textContent = data.pending
+            ? "Ein neuerer Lauf ist noch ungeklärt. Der frühere Nachweis gilt nicht als aktueller Erfolg."
+            : (data.reason || "Kein prüfbarer Lauf vorhanden.");
+        return;
+    }
+    const summary = document.createElement("p");
+    summary.className = "validation-summary";
+    summary.dataset.status = String(data.overall || "nicht prüfbar");
+    const date = new Date(data.checked_at);
+    summary.textContent = `Gesamtstatus: ${data.overall || "nicht prüfbar"} · ${Number.isNaN(date.getTime()) ? "Zeit unbekannt" : date.toLocaleString("de-DE")}`;
+    const list = document.createElement("ul");
+    list.className = "validation-checks";
+    (data.checks || []).forEach(check => {
+        const item = document.createElement("li");
+        item.dataset.status = String(check.status || "nicht prüfbar");
+        const title = document.createElement("strong");
+        title.textContent = `${check.path || check.id}: ${check.status || "nicht prüfbar"}`;
+        const detail = document.createElement("span");
+        detail.textContent = String(check.detail || "");
+        item.append(title, detail);
+        list.append(item);
+    });
+    container.append(summary, list);
+}
+
+async function loadValidation(){
+    const status = document.getElementById("validation-status");
+    const button = document.getElementById("validation-recheck");
+    document.getElementById("validation-current").textContent = "Noch keine erneute Prüfung gestartet.";
+    status.textContent = "Nachweis wird geladen …";
+    button.disabled = true;
+    try {
+        const response = await fetch("/api/validation/last");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Nachweis konnte nicht geladen werden.");
+        renderValidationEvidence(data);
+        status.textContent = data.pending
+            ? "Ein neuerer Lauf ist ungeklärt. Frühere Ergebnisse gelten nicht als aktuell."
+            : (data.available ? "Letzter abgeschlossener Lauf" : (data.reason || "Kein prüfbarer Lauf vorhanden."));
+        button.disabled = !data.available || data.pending;
+    } catch (error) {
+        status.textContent = error.message;
+        document.getElementById("validation-evidence").textContent = "Nachweis nicht verfügbar.";
+    }
+}
+
 function bindViewNavigation(){
 
     const dashboardView = document.getElementById("dashboard-view");
     const explorerView = document.getElementById("vault-explorer-view");
     const regelwerkView = document.getElementById("regelwerk-explorer-view");
     const knowledgeRadarView = document.getElementById("knowledge-radar-view");
+    const validationView = document.getElementById("validation-view");
     const menus = document.querySelectorAll(".menu[data-view]");
     const search = document.getElementById("graph-search");
     const refresh = document.getElementById("graph-refresh");
@@ -597,6 +690,7 @@ function bindViewNavigation(){
         explorerView.hidden = !explorerActive;
         if (regelwerkView) regelwerkView.hidden = view !== "regelwerk-explorer";
         if (knowledgeRadarView) knowledgeRadarView.hidden = view !== "knowledge-radar";
+        if (validationView) validationView.hidden = view !== "validation";
         menus.forEach(menu => menu.classList.toggle("active", menu.dataset.view === view));
 
         if (explorerActive) {
@@ -615,6 +709,7 @@ function bindViewNavigation(){
             if (!knowledgeRadar) knowledgeRadar = new KnowledgeRadar(knowledgeRadarView);
             await knowledgeRadar.load();
         }
+        if (view === "validation") await loadValidation();
     };
 
     menus.forEach(menu => {
@@ -637,6 +732,25 @@ function bindViewNavigation(){
     });
     reset.addEventListener("click", function(){
         vaultGraphExplorer?.resetView();
+    });
+
+    const validationButton = document.getElementById("validation-recheck");
+    validationButton.addEventListener("click", async function(){
+        validationButton.disabled = true;
+        const status = document.getElementById("validation-status");
+        status.textContent = "Aktueller Zustand wird lesend geprüft …";
+        try {
+            const response = await fetch("/api/validation/last/recheck", { method: "POST" });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.detail || "Erneute Prüfung fehlgeschlagen.");
+            renderValidationEvidence(data);
+            renderValidationCurrent(data);
+            status.textContent = data.pending ? "Ein neuerer Lauf ist ungeklärt." : "Erneute Prüfung abgeschlossen.";
+        } catch (error) {
+            status.textContent = error.message;
+        } finally {
+            validationButton.disabled = false;
+        }
     });
 
 }

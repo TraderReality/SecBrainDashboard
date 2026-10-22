@@ -8,7 +8,11 @@ Die erste bedienbare Validierungsansicht bezieht sich auf den letzten erfolgreic
 Inbox- oder Wissensradar-Lauf. Sie zeigt den gespeicherten Übernahmenachweis und
 prüft auf Anforderung Dateien, Commit, Indexer-Export und QMD erneut lesend.
 Ein dauerhafter Marker verhindert nach einem Prozessabbruch einen irreführenden
-grünen Altstatus. Der abgestimmte Entwurf steht unter
+grünen Altstatus. Ein neuer erfolgreicher Lauf ersetzt den Nachweis; nach
+einem kontrolliert fehlgeschlagenen Lauf bleibt der vorherige erhalten.
+Ein späterer Lauf kann den Indexer-Export ändern; die Ansicht kennzeichnet
+dies als Änderung seit dem geprüften Lauf, nicht als damaligen Indexer-Fehler.
+Der abgestimmte Entwurf steht unter
 `docs/superpowers/specs/2026-10-22-letzten-lauf-validieren-design.md` und wurde
 vom Nutzer freigegeben. Der Umsetzungsplan liegt unter
 `docs/superpowers/plans/2026-10-22-letzten-lauf-validieren.md`.

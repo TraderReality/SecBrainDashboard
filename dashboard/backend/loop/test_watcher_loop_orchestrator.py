@@ -516,6 +516,113 @@ class WatcherLoopOrchestratorTest(unittest.TestCase):
         self.assertEqual(orchestrator.status()["vault_retrieval"]["provider"], "qmd-bm25")
         self.assertEqual(runtime.status()["current_station"], 1)
 
+    def test_completed_inbox_run_persists_validation_evidence(self):
+        self.init_git_vault()
+        orchestrator = WatcherLoopOrchestrator(
+            WatcherLoopRuntime(), lambda **_: {"message": {"content": "Analyse"}},
+            str(self.vault), self.retrieval,
+        )
+        orchestrator.start("Inbox einpflegen", "test-model")
+        self.wait(orchestrator, "awaiting_approval")
+        orchestrator.approve()
+        self.wait(orchestrator, "completed")
+        evidence = orchestrator.validation.status()["evidence"]
+        self.assertEqual(evidence["kind"], "inbox")
+        self.assertIn("06 Archiv/eingang.md", evidence["files"])
+        self.assertIn("08 KI-Wissensbank/Quelle — Eingang.md", evidence["files"])
+        self.assertIn("08 KI-Wissensbank/_Log.md", evidence["files"])
+        self.assertTrue(any("_Vorschlaege/" in path for path in evidence["files"]))
+        self.assertEqual(len(evidence["commit"]["revision"]), 40)
+        self.assertEqual(evidence, orchestrator.validation.status()["evidence"])
+
+    def test_completed_radar_run_persists_validation_evidence(self):
+        proposed = "# Radar-Seite\n"
+        proposal = {
+            "kind": "knowledge_radar", "proposal_id": "validation-radar", "operation": "neue_seite",
+            "target": "04 Ressourcen/radar.md", "confidence": 88, "conflicts": [],
+            "target_exists": False, "proposed_markdown": proposed,
+            "original_hash": hashlib.sha256(b"").hexdigest(),
+            "proposed_hash": hashlib.sha256(proposed.encode()).hexdigest(),
+            "markdown_diff": "+# Radar-Seite", "wikilinks": [],
+            "candidate": {"title": "Radar validieren"},
+        }
+        orchestrator = WatcherLoopOrchestrator(WatcherLoopRuntime(), lambda **_: {}, str(self.vault))
+        orchestrator.stage_research_proposal(proposal, "test-model")
+        orchestrator.approve()
+        self.wait(orchestrator, "completed")
+        evidence = orchestrator.validation.status()["evidence"]
+        self.assertEqual(evidence["kind"], "knowledge_radar")
+        self.assertIn("04 Ressourcen/radar.md", evidence["files"])
+        self.assertIn("08 KI-Wissensbank/_Log.md", evidence["files"])
+
+    def test_failed_apply_keeps_previous_validation(self):
+        orchestrator = WatcherLoopOrchestrator(
+            WatcherLoopRuntime(), lambda **_: {"message": {"content": "Analyse"}}, str(self.vault), self.retrieval,
+        )
+        orchestrator.start("Erster Lauf", "test-model")
+        self.wait(orchestrator, "awaiting_approval")
+        orchestrator.approve()
+        self.wait(orchestrator, "completed")
+        previous = orchestrator.validation.status()["evidence"]
+        (self.vault / "01 Inbox/zweiter.md").write_text("# Zweiter Lauf\n", encoding="utf-8")
+        (self.vault / "09 Werkzeuge/indexer.py").write_text("raise SystemExit(42)\n", encoding="utf-8")
+        orchestrator.start("Zweiter Lauf", "test-model")
+        self.wait(orchestrator, "awaiting_approval")
+        orchestrator.approve()
+        self.wait(orchestrator, "failed")
+        self.assertEqual(orchestrator.validation.status()["evidence"], previous)
+        self.assertFalse(orchestrator.validation.status()["pending"])
+
+    def test_validation_evidence_write_failure_leaves_pending_marker(self):
+        orchestrator = WatcherLoopOrchestrator(
+            WatcherLoopRuntime(), lambda **_: {"message": {"content": "Analyse"}}, str(self.vault), self.retrieval,
+        )
+        orchestrator.start("Inbox einpflegen", "test-model")
+        self.wait(orchestrator, "awaiting_approval")
+        with patch.object(orchestrator.validation, "finish", side_effect=OSError("state full")):
+            orchestrator.approve()
+            self.wait(orchestrator, "completed")
+        self.assertTrue((self.vault / "06 Archiv/eingang.md").is_file())
+        self.assertTrue(orchestrator.validation.status()["pending"])
+        self.assertIsNotNone(orchestrator.status()["validation_error"])
+
+    def test_unresolved_inbox_transaction_keeps_validation_pending(self):
+        orchestrator = WatcherLoopOrchestrator(
+            WatcherLoopRuntime(), lambda **_: {"message": {"content": "Analyse"}}, str(self.vault), self.retrieval,
+        )
+        orchestrator.start("Inbox einpflegen", "test-model")
+        self.wait(orchestrator, "awaiting_approval")
+        def unresolved(*_args):
+            orchestrator._executor.transaction_journal.parent.mkdir(parents=True, exist_ok=True)
+            orchestrator._executor.transaction_journal.write_text("unresolved")
+            raise RuntimeError("Rückweg gestoppt")
+        with patch.object(orchestrator._executor, "apply", side_effect=unresolved):
+            orchestrator.approve()
+            self.wait(orchestrator, "failed")
+        self.assertTrue(orchestrator.validation.status()["pending"])
+
+    def test_unresolved_radar_transaction_keeps_validation_pending(self):
+        proposed = "# Radar-Seite\n"
+        proposal = {
+            "kind": "knowledge_radar", "proposal_id": "pending-radar", "operation": "neue_seite",
+            "target": "04 Ressourcen/radar.md", "confidence": 88, "conflicts": [],
+            "target_exists": False, "proposed_markdown": proposed,
+            "original_hash": hashlib.sha256(b"").hexdigest(),
+            "proposed_hash": hashlib.sha256(proposed.encode()).hexdigest(),
+            "markdown_diff": "+# Radar-Seite", "wikilinks": [],
+            "candidate": {"title": "Radar validieren"},
+        }
+        orchestrator = WatcherLoopOrchestrator(WatcherLoopRuntime(), lambda **_: {}, str(self.vault))
+        orchestrator.stage_research_proposal(proposal, "test-model")
+        def unresolved(*_args):
+            orchestrator._executor.transaction_journal.parent.mkdir(parents=True, exist_ok=True)
+            orchestrator._executor.transaction_journal.write_text("unresolved")
+            raise RuntimeError("Rückweg gestoppt")
+        with patch.object(orchestrator._executor, "apply_research", side_effect=unresolved):
+            orchestrator.approve()
+            self.wait(orchestrator, "failed")
+        self.assertTrue(orchestrator.validation.status()["pending"])
+
     def test_confirmed_author_is_used_in_source_name_and_metadata(self):
         def chat(messages, model):
             return {"message": {"content": "Geprüfte Analyse"}}

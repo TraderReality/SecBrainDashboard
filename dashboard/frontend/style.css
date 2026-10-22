@@ -1869,6 +1869,59 @@ min-height:0;
 display:none !important;
 }
 
+.validation-view {
+display:flex;
+flex:1 1 auto;
+min-height:0;
+flex-direction:column;
+gap:14px;
+overflow:auto;
+}
+
+.validation-header {
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:20px;
+}
+
+.validation-header h1 { margin:5px 0 8px; font-size:24px; }
+.validation-header p { margin:0; color:#a8b7d1; }
+.validation-header button {
+padding:10px 16px;
+border:1px solid #00b887;
+border-radius:8px;
+background:#0d5d51;
+color:#effffb;
+font-weight:700;
+cursor:pointer;
+white-space:nowrap;
+}
+.validation-header button:disabled { opacity:.5; cursor:not-allowed; }
+.validation-status { margin:0; color:#b9c9e0; }
+.validation-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.validation-grid .panel { min-width:0; }
+.validation-grid h2 { margin:0 0 16px; font-size:17px; }
+.validation-grid h3 { margin:20px 0 8px; font-size:14px; }
+.validation-line { display:grid; grid-template-columns:140px minmax(0,1fr); gap:10px; padding:7px 0; border-bottom:1px solid #2d405e; overflow-wrap:anywhere; }
+.validation-line strong { color:#9fb2d1; }
+.validation-files, .validation-checks { margin:8px 0 0; padding-left:20px; overflow-wrap:anywhere; }
+.validation-files li { margin:5px 0; }
+.validation-checks li { margin:0 0 12px; padding:10px; border-left:3px solid #677893; background:#0d1a30; list-style:none; }
+.validation-checks li strong, .validation-checks li span { display:block; }
+.validation-checks li span { margin-top:4px; color:#b9c9e0; }
+.validation-checks li[data-status="bestanden"] { border-color:#00c58e; }
+.validation-checks li[data-status="geändert"] { border-color:#f3b640; }
+.validation-checks li[data-status="fehlt"] { border-color:#ff6f76; }
+.validation-summary { margin:0 0 10px; font-weight:700; }
+.validation-summary[data-status="bestanden"] { color:#5de7b5; }
+.validation-summary[data-status="geändert"] { color:#ffd279; }
+@media (max-width:800px) {
+  .validation-header { align-items:flex-start; flex-direction:column; }
+  .validation-grid { grid-template-columns:1fr; }
+  .validation-line { grid-template-columns:105px minmax(0,1fr); }
+}
+
 #dashboard-view {
 display:flex;
 flex:1 1 auto;

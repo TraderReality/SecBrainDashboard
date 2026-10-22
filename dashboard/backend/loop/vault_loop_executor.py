@@ -281,6 +281,7 @@ class VaultLoopExecutor:
             self._release_transaction_lock()
         return {
             "created": created, "archived": archived, "log": str(log_path),
+            "proposal_path": str(approved_path),
             "indexer": index, "commit": commit,
         }
 
@@ -716,7 +717,7 @@ class VaultLoopExecutor:
             self._record_commit_oid(revision, index_hash)
             subprocess.run(["git", "-C", str(self.vault), "update-ref", "HEAD", revision, old_head], check=True)
             os.replace(temporary, index_path)
-            return {"ok": True, "required": True, "revision": revision[:7]}
+            return {"ok": True, "required": True, "revision": revision}
         finally:
             os.close(descriptor)
             temporary.unlink(missing_ok=True)

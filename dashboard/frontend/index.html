@@ -71,7 +71,7 @@
 <span class="menu-icon" aria-hidden="true">⌕</span><span class="menu-label">Scanner</span>
 </div>
 
-<div class="menu">
+<div class="menu" data-view="validation">
 <span class="menu-icon" aria-hidden="true">✓</span><span class="menu-label">Validierung</span>
 </div>
 
@@ -355,6 +355,28 @@ KI-Pflege-Loop – 12 Stationen
 <button id="knowledge-radar-detail-toggle" class="details-toggle-btn knowledge-radar-detail-toggle" type="button" aria-label="Kandidatenmenü ein- oder ausklappen" aria-expanded="false" aria-controls="knowledge-radar-detail-panel">
 <span id="knowledge-radar-detail-toggle-icon" aria-hidden="true">◂</span>
 </button>
+</section>
+
+<section id="validation-view" class="app-view validation-view" hidden aria-labelledby="validation-title">
+<header class="panel validation-header">
+<div>
+<span class="eyebrow">Prüfnachweis</span>
+<h1 id="validation-title">Validierung des letzten Laufs</h1>
+<p>Nachweise der Übernahme und aktueller Zustand werden getrennt angezeigt.</p>
+</div>
+<button id="validation-recheck" type="button" disabled>Erneut prüfen</button>
+</header>
+<p id="validation-status" class="validation-status" role="status" aria-live="polite">Nachweis wird geladen …</p>
+<div class="validation-grid">
+<section class="panel" aria-labelledby="validation-evidence-title">
+<h2 id="validation-evidence-title">Beim Lauf geprüft</h2>
+<div id="validation-evidence"></div>
+</section>
+<section class="panel" aria-labelledby="validation-current-title">
+<h2 id="validation-current-title">Aktuelle Prüfung</h2>
+<div id="validation-current">Noch keine erneute Prüfung gestartet.</div>
+</section>
+</div>
 </section>
 
 
