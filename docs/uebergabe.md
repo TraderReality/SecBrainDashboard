@@ -1,5 +1,73 @@
 # Übergabe
 
+## Vault-Scanner mit Regelprüfung (Feature-Branch vom 22.10.2026)
+
+Die Scanner-Ansicht ist an die authentisierten Status-, Start- und Bericht-APIs
+angebunden. Ein manueller Hintergrundlauf zeigt letzte vollständige Basis,
+aktuellen Versuch und Fortschritt. Neu/geändert/entfernt, technische Befunde,
+KI-Verletzungen und unklare KI-Urteile stehen in eigenen Listen. Pfade,
+Regelreferenzen und Gründe werden als Text eingefügt. Unvollständige Versuche,
+Abruffehler und ausstehende App-Übernahmen entfernen grünen Altstatus. Der dauerhafte Übernahmemarker aus
+der Laufvalidierung wird auch nach einem Neustart mit ruhendem Orchestrator
+über Scanner- und Laufstatus geprüft; unbekannter Markerstatus bleibt ohne Grün. Beim
+Verlassen der Ansicht endet das begrenzte Polling. Die mobile Navigation gilt
+auch für Scanner; lange Vault-Pfade umbrechen.
+
+Berichte: `09 Werkzeuge/Scanner-Berichte/<scan_id>.json` in der aktiven Vault,
+mit ausschließlich auf den Bericht begrenztem Git-Commit. Der Inhaltsvergleich
+schließt diesen Ordner explizit aus. Fehlgeschlagene Versuche ersetzen die letzte
+vollständige Basis nicht. Berichtsschreib- oder Commitfehler bleiben unvollständig.
+
+Alle App-Vault-Schreibwege nutzen die gemeinsame Prüfung konkreter Änderungen;
+Modellausfall, fehlende Regelabdeckung und unklare/verletzte Regeln sperren.
+Echte PDF-/ZIP-Dateien sowie binäre, zu große oder unverarbeitbare Inhalte
+führen derzeit zu HTTP 409 ohne Schreibzugriff. Vorhandene unprüfbare Dateien
+und Modellbudgets können auch unbeteiligte Übernahmen blockieren. KI-Befunde
+liefern keine absolute semantische Garantie; externe Schreibprogramme können
+die Momentaufnahme nach dem Prüfzeitpunkt verändern.
+
+Abhängigkeit: PR #13 („Validierung des letzten Laufs“) ist Basis des Branches.
+Noch kein Merge, Push oder Rollout durch diese Teilaufgabe; NAS-Main blieb
+unangetastet. Verifikationsbefehle, Ergebnisse und isolierte Browserproben stehen
+in `.superpowers/sdd/2026-10-22-vault-scanner-regelpruefung/task-8-report.md`.
+
+**Indexer-Fallback umgesetzt, noch nicht ausgerollt:** Fehlt die aktive Vault-Datei
+`09 Werkzeuge/indexer.py`, startet der Watcher jetzt den Paketbestandteil
+`dashboard/backend/loop/vault_indexer.py`. Ein vorhandenes Vault-Skript behält
+Vorrang; sein Fehler löst keinen stillen Wechsel aus. Es wird kein Skript in die
+Vault kopiert. Beide Aufrufwege erhalten den aktiven Vault-Pfad und deaktivierte
+QMD-Embeddings.
+
+Grundlage ist die lesbare Nutzerquelle `/Volumes/Local/Neuer Ordner/indexer.py`
+vom 23.08.2026 (SHA-256
+`942b64b09be886062102843d3633e09eced2bbc94c45f0bff3519ea5aa66312d`).
+Die externe Datei blieb unverändert; die zusätzlich gelieferte `.pyc` wurde
+nicht ausgeführt. Der Nutzer meldet kein aktives Indexer-Skript auf MacBook/NAS;
+eine neuere, eventuell abweichende NAS-Version ist damit nicht rekonstruiert.
+
+Der Paket-Indexer schließt `09 Werkzeuge/Scanner-Berichte/` ausdrücklich aus
+seinem Dateiinventar aus. Ein isolierter echter Subprozess-Test belegt den
+Ausschluss von JSON-Bericht und Markdown-Köder aus Graph, Suchindex, Caches und
+QMD-Manifest sowie die Aufnahme normaler Markdown-Dateien. QMD war dabei
+abgeschaltet. Neue QMD-Kollektionen erhalten explizit `--mask '**/*.md'` und
+nehmen damit reguläre JSON-Berichte nicht auf. QMD scannt unabhängig vom
+Manifest: Markdown-Dateien im Berichtsordner oder bestehende Kollektionen mit
+abweichender Maske sind durch diese QMD-Maske nicht ausgeschlossen. Externe
+QMD-Konfiguration und vorhandene Vault-Indexer werden nicht umgeschrieben;
+deren Verhalten muss bei einer Bereitstellung separat geprüft werden.
+Nachweis: `.superpowers/sdd/2026-10-22-vault-scanner-regelpruefung/indexer-fallback-report.md`.
+NAS-Main wurde durch diese Änderung nicht geprüft oder verändert.
+
+Der Paket-Indexer liest Quellen über verankerte Verzeichnisdeskriptoren ohne
+Symlink-Folgen. Identität und Bytes werden vor und nach dem Export erneut
+geprüft. Ausgaben entstehen atomar über dieselben sicheren Dateihelfer wie die
+App-Schreibwege; ausgetauschte Quell-, Ausgabe- oder Elternpfade führen zum
+Fehler. Gezielte Rennen nach Momentaufnahme und nach Öffnen des Ausgabeverzeichnisses
+sind durch Regressionstests abgedeckt. Ein abgebrochener direkter Indexerlauf
+kann bereits erzeugte abgeleitete Dateien hinterlassen; der Watcher nutzt dafür
+seinen bestehenden Rückweg. Vorhandene Vault-eigene Skripte erhalten diese
+Absicherung nicht automatisch.
+
 ## Validierung des letzten Laufs (Feature-Branch vom 22.10.2026)
 
 Der freigegebene Entwurf und Plan sind auf dem isolierten Feature-Branch

@@ -346,6 +346,9 @@ function updateRuntimeActivity(loop){
 
     const orchestration = loop.orchestration || {};
     const workflowRunning = Boolean(orchestration.active);
+    scannerApprovalPending = typeof orchestration.state === "string"
+        ? Boolean(orchestration.approval_required) || orchestration.state === "applying" : null;
+    if (scannerLastStatus) renderScannerStatus({...scannerLastStatus, app_write_pending: loop.app_write_pending});
 
     loopRenderer?.setAutonomousRunning(workflowRunning);
 
@@ -466,6 +469,7 @@ async function loadShell(){
     catch(error){
 
 
+        scannerWorkflowUnavailable();
         console.error(
             "SECBrain Dashboard Error:",
             error
@@ -494,6 +498,7 @@ async function refreshRuntimeActivity(){
         updateRuntimeActivity(loop);
 
     } catch(error) {
+        scannerWorkflowUnavailable();
         console.error("SECBrain Watcher Runtime Error:", error);
     }
 
@@ -672,6 +677,195 @@ async function loadValidation(){
     }
 }
 
+// Scanner: bounded polling, and the latest attempt always takes precedence.
+let scannerApprovalPending = null;
+let scannerLastStatus = null;
+let scannerTimer = null;
+let scannerGeneration = 0;
+const SCANNER_POLL_LIMIT = 120;
+
+function stopScannerPolling(){
+    scannerGeneration += 1;
+    clearTimeout(scannerTimer);
+    scannerTimer = null;
+}
+
+function scannerWorkflowUnavailable(){
+    scannerApprovalPending = null;
+    if (scannerLastStatus) renderScannerStatus(scannerLastStatus);
+}
+
+function scannerMessage(text, tone = "warning"){
+    const status = document.getElementById("scanner-status");
+    status.textContent = text;
+    status.dataset.tone = tone;
+    if (tone !== "success") scannerLastStatus = null;
+}
+
+function scannerTime(value){
+    if (!value) return "Noch nicht vorhanden";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "Zeitpunkt nicht verfügbar" : date.toLocaleString("de-DE");
+}
+
+function renderScannerStatus(data){
+    const attempt = data.last_attempt;
+    const baseline = data.last_complete;
+    document.getElementById("scanner-baseline").textContent = baseline
+        ? scannerTime(baseline.finished_at) + " · " + baseline.scan_id
+        : "Noch keine vollständige Vergleichsbasis. Der erste vollständige Scan inventarisiert den Bestand.";
+    const attemptState = attempt?.state === "complete" ? "vollständig geprüft"
+        : attempt?.state === "running" ? "Scan läuft" : "nicht vollständig geprüft";
+    document.getElementById("scanner-attempt").textContent = attempt
+        ? scannerTime(attempt.started_at) + " · " + attemptState + (attempt.message && attempt.message !== attemptState ? " · " + attempt.message : "")
+        : "Noch kein Versuch gestartet.";
+    const phases = {idle: "Bereit", inventory: "Dateien erfassen", rules: "Regeln bewerten",
+        verify: "Dateistand erneut prüfen", publish: "Bericht veröffentlichen", done: "Beendet"};
+    const progress = data.progress || {};
+    document.getElementById("scanner-progress").textContent =
+        (phases[progress.phase] || "Status nicht verfügbar") + " · " +
+        (progress.completed || 0) + " / " + (progress.total || 0) + " Dateien";
+    document.getElementById("scanner-start").disabled = data.state === "running";
+    if (data.state === "running") {
+        scannerMessage("Scan läuft · noch nicht vollständig geprüft.");
+    } else if (data.state === "incomplete") {
+        scannerMessage("nicht vollständig geprüft · App-Übernahmen bleiben gesperrt." + ((data.message || attempt?.message) && (data.message || attempt?.message) !== "nicht vollständig geprüft" ? " " + (data.message || attempt.message) : ""));
+    } else if (data.state === "complete" && data.overall === "verletzt") {
+        scannerMessage("Vollständig geprüft · Regeln verletzt. App-Übernahmen bleiben gesperrt.", "danger");
+    } else if (data.state === "complete" && (data.app_write_pending === true || scannerApprovalPending === true)) {
+        scannerMessage("Scan abgeschlossen · App-Übernahme ausstehend. Der Änderungssatz wird vor der Übernahme erneut geprüft.");
+    } else if (data.state === "complete" && (data.app_write_pending !== false || scannerApprovalPending === null)) {
+        scannerMessage("Scan abgeschlossen · Übernahmestatus nicht verfügbar. Aktuelle App-Freigabe noch ungeklärt.");
+    } else if (data.state === "complete" && data.overall === "erfüllt"
+               && (!attempt || attempt.state === "complete")) {
+        scannerMessage("Vollständig geprüft · Regeln erfüllt zum angezeigten Prüfzeitpunkt.", "success");
+    } else if (data.state === "complete") {
+        scannerMessage("Prüfung beendet · Regelstatus unklar. App-Übernahmen bleiben gesperrt.");
+    } else {
+        scannerMessage("Noch nicht geprüft · einen Scan starten, um die Vergleichsbasis anzulegen.");
+    }
+    scannerLastStatus = data;
+}
+
+function scannerRows(id, rows, findings = false){
+    const list = document.getElementById(id);
+    list.replaceChildren();
+    if (!rows.length) {
+        const empty = document.createElement("li");
+        empty.textContent = "Keine Einträge im angezeigten Bericht.";
+        list.append(empty);
+    }
+    rows.forEach(row => {
+        const item = document.createElement("li");
+        const path = document.createElement("strong");
+        path.textContent = row.path || ".";
+        item.append(path);
+        if (findings) {
+            const reference = document.createElement("span");
+            reference.textContent = row.rule_id
+                ? row.rule_id + " · " + (row.source?.path || "AGENTS.md") + ":" + (row.source?.line || "?")
+                : "Technische Prüfung · " + (row.status || "unklar");
+            const reason = document.createElement("p");
+            reason.textContent = row.reason || "Kein Grund verfügbar.";
+            item.append(reference, reason);
+        }
+        list.append(item);
+    });
+}
+
+function clearScannerReport(){
+    const link = document.getElementById("scanner-report");
+    link.hidden = true;
+    link.removeAttribute("href");
+    document.getElementById("scanner-report-summary").textContent = "Noch kein Bericht für den aktuellen Versuch geladen.";
+    ["new", "changed", "removed", "technical", "violations", "unclear"].forEach(name => {
+        document.getElementById("scanner-" + name).textContent = "Noch kein Bericht geladen.";
+    });
+}
+
+function renderScannerReport(report){
+    const link = document.getElementById("scanner-report");
+    link.href = "/api/scanner/reports/" + encodeURIComponent(report.scan_id);
+    link.hidden = false;
+    link.textContent = "JSON-Bericht öffnen · " + report.scan_id;
+    document.getElementById("scanner-report-summary").textContent =
+        "Bericht vom " + scannerTime(report.finished_at) + " · " +
+        (report.complete ? "vollständiger Scan" : "nicht vollständig geprüft") + " · " +
+        (report.files || []).length + " Dateien · Modell: " + (report.model || "nicht verfügbar") +
+        (report.complete && !(report.changes || []).length ? " · Keine Dateiänderungen im Bericht." : "");
+    const changes = report.changes || [];
+    scannerRows("scanner-new", changes.filter(row => row.status === "neu"));
+    scannerRows("scanner-changed", changes.filter(row => row.status === "geändert"));
+    scannerRows("scanner-removed", changes.filter(row => row.status === "entfernt"));
+    scannerRows("scanner-technical", report.technical_findings || [], true);
+    scannerRows("scanner-violations", (report.findings || []).filter(row => row.status === "verletzt"), true);
+    scannerRows("scanner-unclear", (report.findings || []).filter(row => row.status === "unklar"), true);
+}
+
+async function scannerRequest(url, method = "GET"){
+    const response = await fetch(url, {method, cache: "no-store", signal: AbortSignal.timeout(15000)});
+    const data = await response.json();
+    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Scanner-Anfrage fehlgeschlagen.");
+    return data;
+}
+
+async function pollScanner(generation, remaining){
+    if (generation !== scannerGeneration || document.getElementById("scanner-view").hidden) return;
+    try {
+        const data = await scannerRequest("/api/scanner/status");
+        if (generation !== scannerGeneration || document.getElementById("scanner-view").hidden) return;
+        renderScannerStatus(data);
+        if (data.state === "running") {
+            clearScannerReport();
+            if (remaining > 1) scannerTimer = setTimeout(() => pollScanner(generation, remaining - 1), 2000);
+            else scannerMessage("Scan läuft · automatische Aktualisierung pausiert. Status über „Aktualisieren“ erneut laden.");
+            return;
+        }
+        clearScannerReport();
+        const reportId = data.last_attempt?.scan_id || data.last_complete?.scan_id;
+        if (reportId) {
+            try {
+                const report = await scannerRequest("/api/scanner/reports/" + encodeURIComponent(reportId));
+                if (generation === scannerGeneration && !document.getElementById("scanner-view").hidden) renderScannerReport(report);
+            } catch (error) {
+                if (generation === scannerGeneration) {
+                    scannerMessage("Bericht nicht verfügbar · nicht vollständig geprüft. " + error.message);
+                    document.getElementById("scanner-report-summary").textContent = "Bericht konnte nicht geladen werden.";
+                }
+            }
+        }
+    } catch (error) {
+        if (generation !== scannerGeneration) return;
+        scannerMessage("Scanner nicht verfügbar · nicht vollständig geprüft. " + error.message);
+        clearScannerReport();
+        document.getElementById("scanner-start").disabled = false;
+    }
+}
+
+async function loadScanner(){
+    stopScannerPolling();
+    scannerMessage("Scannerstatus wird geladen · noch nicht vollständig geprüft.");
+    clearScannerReport();
+    await pollScanner(scannerGeneration, SCANNER_POLL_LIMIT);
+}
+
+async function startScanner(){
+    stopScannerPolling();
+    const generation = scannerGeneration;
+    document.getElementById("scanner-start").disabled = true;
+    scannerMessage("Scan wird gestartet · noch nicht vollständig geprüft.");
+    clearScannerReport();
+    try {
+        await scannerRequest("/api/scanner/scan", "POST");
+        if (generation === scannerGeneration) await pollScanner(generation, SCANNER_POLL_LIMIT);
+    } catch (error) {
+        if (generation !== scannerGeneration) return;
+        scannerMessage("Scan konnte nicht gestartet werden · nicht vollständig geprüft. " + error.message);
+        document.getElementById("scanner-start").disabled = false;
+    }
+}
+
+
 function bindViewNavigation(){
 
     const dashboardView = document.getElementById("dashboard-view");
@@ -679,6 +873,7 @@ function bindViewNavigation(){
     const regelwerkView = document.getElementById("regelwerk-explorer-view");
     const knowledgeRadarView = document.getElementById("knowledge-radar-view");
     const validationView = document.getElementById("validation-view");
+    const scannerView = document.getElementById("scanner-view");
     const menus = document.querySelectorAll(".menu[data-view]");
     const search = document.getElementById("graph-search");
     const refresh = document.getElementById("graph-refresh");
@@ -691,6 +886,8 @@ function bindViewNavigation(){
         if (regelwerkView) regelwerkView.hidden = view !== "regelwerk-explorer";
         if (knowledgeRadarView) knowledgeRadarView.hidden = view !== "knowledge-radar";
         if (validationView) validationView.hidden = view !== "validation";
+        if (scannerView) scannerView.hidden = view !== "scanner";
+        if (view !== "scanner") stopScannerPolling();
         menus.forEach(menu => menu.classList.toggle("active", menu.dataset.view === view));
 
         if (explorerActive) {
@@ -710,6 +907,7 @@ function bindViewNavigation(){
             await knowledgeRadar.load();
         }
         if (view === "validation") await loadValidation();
+        if (view === "scanner") await loadScanner();
     };
 
     menus.forEach(menu => {
@@ -1251,6 +1449,8 @@ function bindMarkdownEditorModal(){
 
 
 bindWorkflowControls();
+document.getElementById("scanner-start").addEventListener("click", startScanner);
+document.getElementById("scanner-refresh").addEventListener("click", loadScanner);
 bindViewNavigation();
 bindSidebarToggle();
 bindDetailsPanelToggle();

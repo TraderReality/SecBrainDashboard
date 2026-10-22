@@ -1,13 +1,14 @@
 """Sicherer DokuLader-Kern für das SECBrain-Watcher-Webinterface."""
 
 import base64
+from contextlib import contextmanager
 import binascii
 import hashlib
 import ipaddress
 import os
 import re
-import shutil
 import socket
+import stat
 import tempfile
 import time
 import urllib.parse
@@ -18,6 +19,11 @@ import requests
 import yaml
 from bs4 import BeautifulSoup
 from markdownify import markdownify
+
+from scanner.write_guard import PlannedChange, RuleBlocked, VaultWriteGuard
+from scanner.inventory import _FILE_FLAGS
+from scanner.safe_files import (_parent_directory, _atomic_new_file, _atomic_replace_file,
+                                _remove_file)
 
 
 MAX_URLS = 20
@@ -56,8 +62,13 @@ def existing_vault_metadata(vault: Path) -> tuple[set[str], set[str], set[str]]:
         if "_index" in path.parts:
             continue
         try:
-            text = path.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
+            with _parent_directory(path) as directory:
+                descriptor = os.open(path.name, _FILE_FLAGS, dir_fd=directory)
+                with os.fdopen(descriptor, "rb") as handle:
+                    if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                        continue
+                    text = handle.read().decode("utf-8", errors="ignore")
+        except (OSError, RuleBlocked):
             continue
         metadata = _frontmatter(text)
         if metadata.get("id"):
@@ -78,19 +89,26 @@ def _unique_id(base: str, existing: set[str]) -> str:
     return candidate
 
 
-def _atomic_new_file(target: Path, content: bytes) -> None:
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if target.exists():
-        raise FileExistsError(f"{target.name} existiert bereits.")
-    descriptor, temporary_name = tempfile.mkstemp(prefix=".dokulader-", suffix=".tmp", dir=target.parent)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.link(temporary_name, target)
-    finally:
-        Path(temporary_name).unlink(missing_ok=True)
+def _rollback_installed(installed):
+    conflicts = []
+    for target, expected in reversed(installed):
+        try:
+            _remove_file(target, expected)
+        except (OSError, RuleBlocked):
+            conflicts.append(target.name)
+    if conflicts:
+        raise RuleBlocked("Rückweg bleibt offen; fremde Dateien erhalten: " + ", ".join(conflicts))
+
+
+@contextmanager
+def _temporary_input(vault: Path, content: bytes, suffix: str):
+    directory = Path(tempfile.gettempdir()).resolve()
+    if directory.is_relative_to(vault.resolve()):
+        raise RuleBlocked("Temporäre Verarbeitung muss außerhalb der Vault liegen.")
+    with tempfile.NamedTemporaryFile(suffix=suffix, dir=directory) as temporary:
+        temporary.write(content)
+        temporary.flush()
+        yield Path(temporary.name)
 
 
 def _validated_web_url(raw_url: str) -> str:
@@ -161,7 +179,7 @@ def _html_to_markdown(html: str) -> tuple[str, str]:
     return title.strip(), re.sub(r"\n{3,}", "\n\n", body).strip()
 
 
-def import_urls(vault: Path, urls: list[str]) -> dict:
+def import_urls(vault: Path, urls: list[str], guard: VaultWriteGuard) -> dict:
     cleaned = list(dict.fromkeys(url.strip() for url in urls if url.strip()))
     if not cleaned:
         raise ValueError("Mindestens eine URL ist erforderlich.")
@@ -173,6 +191,7 @@ def import_urls(vault: Path, urls: list[str]) -> dict:
     imported = []
     skipped = []
     errors = []
+    prepared = []
     for raw_url in cleaned:
         try:
             normalized_url = urllib.parse.urlunsplit((*urllib.parse.urlsplit(raw_url)[:4], ""))
@@ -200,12 +219,33 @@ def import_urls(vault: Path, urls: list[str]) -> dict:
                 f"Heruntergeladen von {final_url} am {today} mit DokuLader.\n\n## Inhalt\n\n{body}\n"
             )
             target = inbox / f"{note_id}.md"
-            _atomic_new_file(target, note.encode("utf-8"))
+            if target.exists():
+                raise FileExistsError(f"{target.name} existiert bereits.")
+            prepared.append((PlannedChange(target.relative_to(vault).as_posix(), "create", None,
+                                           note.encode("utf-8")), final_url, raw_url))
             ids.add(note_id)
             sources.add(final_url)
-            imported.append({"filename": target.name, "url": final_url})
         except Exception as exc:
             errors.append({"url": raw_url, "reason": str(exc)})
+    if prepared:
+        # Fetch and convert the complete batch before the first Vault mutation.
+        with guard.authorize([item[0] for item in prepared], approval=None):
+            installed = []
+            try:
+                for change, final_url, raw_url in prepared:
+                    target = vault / change.relative_path
+                    installed.append((target, _atomic_new_file(target, change.after_bytes)))
+            except Exception as exc:
+                # The authorized batch is one mutation: stop installing and
+                # undo its completed writes before releasing the app lock.
+                _rollback_installed(installed)
+                if isinstance(exc, RuleBlocked):
+                    raise
+                errors.extend({"url": raw_url, "reason": f"Import-Batch zurückgerollt: {exc}"}
+                              for _, _, raw_url in prepared)
+            else:
+                imported.extend({"filename": (vault / change.relative_path).name, "url": final_url}
+                                for change, final_url, _ in prepared)
     return {"status": "completed", "imported": imported, "skipped": skipped, "errors": errors}
 
 
@@ -258,7 +298,7 @@ def _convert_pdf_to_pages(path: Path) -> list[dict]:
     return pages
 
 
-def import_pdf(vault: Path, filename: str, content_base64: str) -> dict:
+def import_pdf(vault: Path, filename: str, content_base64: str, guard: VaultWriteGuard) -> dict:
     name = Path(filename or "").name
     if name != filename or not name.lower().endswith(".pdf"):
         raise ValueError("Ein PDF-Handbuch muss eine einfache .pdf-Datei sein.")
@@ -268,10 +308,8 @@ def import_pdf(vault: Path, filename: str, content_base64: str) -> dict:
     if digest in hashes:
         raise FileExistsError("Dieses PDF-Handbuch ist bereits in der Vault.")
 
-    with tempfile.NamedTemporaryFile(suffix=".pdf") as temporary:
-        temporary.write(content)
-        temporary.flush()
-        pages = _convert_pdf_to_pages(Path(temporary.name))
+    with _temporary_input(vault, content, ".pdf") as temporary:
+        pages = _convert_pdf_to_pages(temporary)
     if len(pages) > MAX_PDF_PAGES:
         raise ValueError(f"PDFs dürfen höchstens {MAX_PDF_PAGES} Seiten enthalten.")
 
@@ -280,29 +318,22 @@ def import_pdf(vault: Path, filename: str, content_base64: str) -> dict:
     package_target = archive_root / package_name
     if package_target.exists():
         raise FileExistsError("Dieses PDF-Paket ist bereits im Dokumentationsarchiv vorhanden.")
-    archive_root.mkdir(parents=True, exist_ok=True)
-    staging = Path(tempfile.mkdtemp(prefix=".dokulader-pdf-", dir=archive_root))
+    relative_package = package_target.relative_to(vault).as_posix()
+    prepared = [PlannedChange(f"{relative_package}/{name}", "create", None, content)]
     chunks = []
-    try:
-        (staging / name).write_bytes(content)
-        chunks_dir = staging / "Kapitel"
-        chunks_dir.mkdir()
-        for start in range(0, len(pages), PDF_PAGES_PER_CHUNK):
-            group = pages[start:start + PDF_PAGES_PER_CHUNK]
-            first_page = start + 1
-            last_page = start + len(group)
-            chunk_name = f"teil-{(start // PDF_PAGES_PER_CHUNK) + 1:04d}-seiten-{first_page:04d}-{last_page:04d}.md"
-            body_parts = []
-            for index, page in enumerate(group, start=first_page):
-                text = str(page.get("text", "")).strip()
-                body_parts.append(f"<!-- PDF-Seite {index} -->\n\n{text}")
-            chunk = f"# {Path(name).stem} — Seiten {first_page}–{last_page}\n\n" + "\n\n---\n\n".join(body_parts) + "\n"
-            (chunks_dir / chunk_name).write_text(chunk, encoding="utf-8")
-            chunks.append(chunk_name)
-        os.rename(staging, package_target)
-    except Exception:
-        shutil.rmtree(staging, ignore_errors=True)
-        raise
+    for start in range(0, len(pages), PDF_PAGES_PER_CHUNK):
+        group = pages[start:start + PDF_PAGES_PER_CHUNK]
+        first_page = start + 1
+        last_page = start + len(group)
+        chunk_name = f"teil-{(start // PDF_PAGES_PER_CHUNK) + 1:04d}-seiten-{first_page:04d}-{last_page:04d}.md"
+        body_parts = []
+        for index, page in enumerate(group, start=first_page):
+            text = str(page.get("text", "")).strip()
+            body_parts.append(f"<!-- PDF-Seite {index} -->\n\n{text}")
+        chunk = f"# {Path(name).stem} — Seiten {first_page}–{last_page}\n\n" + "\n\n---\n\n".join(body_parts) + "\n"
+        prepared.append(PlannedChange(f"{relative_package}/Kapitel/{chunk_name}", "create", None,
+                                      chunk.encode("utf-8")))
+        chunks.append(chunk_name)
 
     version_match = re.search(r"(?<!\d)(\d+(?:\.\d+)+)(?!\d)", Path(name).stem)
     version = version_match.group(1) if version_match else "nicht erkannt"
@@ -328,11 +359,30 @@ def import_pdf(vault: Path, filename: str, content_base64: str) -> dict:
         "erzeugten, seitengebundenen Markdown-Teile kontrolliert sowie versionsgebunden einpflegen.\n"
     )
     manifest = vault / "01 Inbox" / f"{note_id}.md"
-    try:
-        _atomic_new_file(manifest, note.encode("utf-8"))
-    except Exception:
-        shutil.rmtree(package_target, ignore_errors=True)
-        raise
+    prepared.append(PlannedChange(manifest.relative_to(vault).as_posix(), "create", None,
+                                  note.encode("utf-8")))
+    with guard.authorize(prepared, approval=None):
+        # Own this package directory exclusively so rollback cannot remove an
+        # existing package. All document bytes were prepared outside the Vault.
+        with _parent_directory(package_target, create=True) as directory:
+            os.mkdir(package_target.name, dir_fd=directory)
+            installed = []
+            try:
+                for change in prepared:
+                    target = vault / change.relative_path
+                    installed.append((target, _atomic_new_file(target, change.after_bytes)))
+            except Exception:
+                _rollback_installed(installed)
+                # Remove only empty directories; preserve any externally added files.
+                for parent in (package_target / "Kapitel", package_target):
+                    try:
+                        with _parent_directory(parent) as parent_fd:
+                            os.rmdir(parent.name, dir_fd=parent_fd)
+                    except FileNotFoundError:
+                        pass
+                    except OSError as exc:
+                        raise RuleBlocked("PDF-Rückweg bleibt wegen fremder Dateien offen.") from exc
+                raise
     return {"status": "uploaded", "filename": manifest.name, "archive": relative_package,
             "pages": len(pages), "chunks": len(chunks), "version": version, "sha256": digest}
 
@@ -360,7 +410,7 @@ def _inspect_zip(path: Path) -> list[zipfile.ZipInfo]:
     return infos
 
 
-def import_package(vault: Path, filename: str, content_base64: str) -> dict:
+def import_package(vault: Path, filename: str, content_base64: str, guard: VaultWriteGuard) -> dict:
     name = Path(filename or "").name
     if name != filename or not name.lower().endswith(".zip"):
         raise ValueError("Ein Dokumentationspaket muss eine einfache .zip-Datei sein.")
@@ -370,10 +420,8 @@ def import_package(vault: Path, filename: str, content_base64: str) -> dict:
     if digest in hashes:
         raise FileExistsError("Dieses Dokumentationspaket ist bereits in der Vault.")
 
-    with tempfile.NamedTemporaryFile(suffix=".zip") as temporary:
-        temporary.write(content)
-        temporary.flush()
-        infos = _inspect_zip(Path(temporary.name))
+    with _temporary_input(vault, content, ".zip") as temporary:
+        infos = _inspect_zip(temporary)
     markdown = [info for info in infos if info.filename.lower().endswith(".md")]
     if len(markdown) < PACKAGE_MD_THRESHOLD:
         raise ValueError(f"Paketmodus erwartet mindestens {PACKAGE_MD_THRESHOLD} Markdown-Dateien; gefunden: {len(markdown)}.")
@@ -382,7 +430,6 @@ def import_package(vault: Path, filename: str, content_base64: str) -> dict:
     archive_target = archive_dir / name
     if archive_target.exists():
         archive_target = archive_dir / f"{Path(name).stem}-{digest[:12]}.zip"
-    _atomic_new_file(archive_target, content)
 
     version_match = re.search(r"(?<!\d)(\d+\.\d+)(?!\d)", Path(name).stem)
     version = version_match.group(1) if version_match else "nicht erkannt"
@@ -421,11 +468,16 @@ def import_package(vault: Path, filename: str, content_base64: str) -> dict:
         "danach nur freigegebene Kapitel kontrolliert und versionsgebunden einpflegen.\n"
     )
     manifest = vault / "01 Inbox" / f"{note_id}.md"
-    try:
-        _atomic_new_file(manifest, note.encode("utf-8"))
-    except Exception:
-        archive_target.unlink(missing_ok=True)
-        raise
+    prepared = [PlannedChange(relative_archive, "create", None, content),
+                PlannedChange(manifest.relative_to(vault).as_posix(), "create", None,
+                              note.encode("utf-8"))]
+    with guard.authorize(prepared, approval=None):
+        installed = _atomic_new_file(archive_target, prepared[0].after_bytes)
+        try:
+            _atomic_new_file(manifest, prepared[1].after_bytes)
+        except Exception:
+            _rollback_installed([(archive_target, installed)])
+            raise
     return {
         "status": "uploaded",
         "filename": manifest.name,

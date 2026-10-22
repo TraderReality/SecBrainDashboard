@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from threading import Event, Lock, Thread
 from typing import Any, Callable
 
@@ -9,6 +10,7 @@ from guardian_rules import chat_context
 from loop.run_validation import RunValidationService
 from loop.vault_loop_executor import VaultLoopExecutor
 from loop.watcher_loop_runtime import STATION_NAMES, WatcherLoopRuntime
+from scanner.write_guard import VaultWriteGuard
 from vault_retrieval_service import public_retrieval, retrieve_vault_context
 
 
@@ -21,8 +23,11 @@ class WatcherLoopOrchestrator:
     ) -> None:
         self._runtime, self._chat = runtime, chat
         self._retriever = retriever
-        self._executor = VaultLoopExecutor(vault_path)
         self.validation = RunValidationService(vault_path)
+        guard = VaultWriteGuard(
+            Path(vault_path).resolve(), self.validation.state, chat, lambda: self._model,
+        )
+        self._executor = VaultLoopExecutor(vault_path, guard)
         self._lock, self._stop = Lock(), Event()
         self._thread: Thread | None = None
         self._state, self._goal, self._author, self._model, self._error = "idle", "", "", "", ""
@@ -42,11 +47,12 @@ class WatcherLoopOrchestrator:
             raise ValueError("Für den autonomen Lauf wird eine Aufgabe benötigt.")
         if not model:
             raise ValueError("Für den autonomen Lauf muss ein Modell gewählt sein.")
-        self._executor.ensure_commit_ready()
-        inputs = self._executor.snapshot_inbox()
         with self._lock:
             if self._active_locked() or self._state == "awaiting_approval":
                 raise RuntimeError("Ein Watcher-Lauf ist bereits aktiv oder wartet auf Freigabe.")
+            self._model = model
+            self._executor.ensure_commit_ready()
+            inputs = self._executor.snapshot_inbox()
             self._runtime.start(model)
             self._stop.clear()
             self._state, self._goal, self._author, self._model = "running", goal, author, model
@@ -85,10 +91,14 @@ class WatcherLoopOrchestrator:
     def stage_research_proposal(self, proposal: dict[str, Any], model: str) -> dict[str, Any]:
         if proposal.get("kind") != "knowledge_radar" or not proposal.get("proposal_id"):
             raise ValueError("Ungültiger Wissensradar-Vorschlag.")
-        self._executor.ensure_commit_ready()
+        model = str(model).strip()
+        if not model:
+            raise ValueError("Für den autonomen Lauf muss ein Modell gewählt sein.")
         with self._lock:
             if self._active_locked() or self._state == "awaiting_approval":
                 raise RuntimeError("Ein Watcher-Lauf ist bereits aktiv oder wartet auf Freigabe.")
+            self._model = model
+            self._executor.ensure_commit_ready()
             self._runtime.start_at(model, 6, "Kontrollierter Wissensradar-Vorschlag wurde direkt an Station 06 übergeben.")
             self._state, self._goal, self._author, self._model = (
                 "awaiting_approval", proposal["candidate"]["title"], "Wissensradar", model

@@ -4963,3 +4963,33 @@ flex:0 0 auto;
     border-left:0;
   }
 }
+
+/* Vault scanner: paths and references wrap on small screens. */
+.scanner-view { width: 100%; min-width: 0; }
+.scanner-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.scanner-header h1 { margin: 8px 0; }
+.scanner-actions { display: flex; flex-wrap: wrap; gap: 10px; flex-shrink: 0; }
+.scanner-actions button { padding: 10px 16px; cursor: pointer; }
+.scanner-actions button:disabled { cursor: wait; opacity: .6; }
+.scanner-status { padding: 16px; border: 1px solid #b68c47; background: #3c3020; border-radius: 10px; color: #ffe0a3; overflow-wrap: anywhere; }
+.scanner-status[data-tone="success"] { border-color: #448c6a; background: #19382e; color: #adf1ce; }
+.scanner-status[data-tone="danger"] { border-color: #b36168; background: #48292d; color: #ffc4c8; }
+.scanner-metadata { margin-bottom: 18px; }
+.scanner-metadata dl { margin: 0; display: grid; gap: 16px; }
+.scanner-metadata dt { font-weight: 600; color: #b8c2d5; margin-bottom: 5px; }
+.scanner-metadata dd { margin: 0; overflow-wrap: anywhere; }
+.scanner-metadata a { color: #9ec8ff; overflow-wrap: anywhere; }
+.scanner-note { color: #b8c2d5; line-height: 1.5; font-size: 13px; }
+.scanner-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.scanner-grid .panel { min-width: 0; }
+.scanner-grid h2 { font-size: 17px; margin-top: 0; }
+.scanner-list { list-style: none; padding: 0; margin: 0; max-height: 420px; overflow: auto; }
+.scanner-list li { padding: 12px 0; overflow-wrap: anywhere; border-bottom: 1px solid #344157; }
+.scanner-list strong, .scanner-list span { display: block; }
+.scanner-list span { font-size: 12px; color: #b8c2d5; margin-top: 6px; }
+.scanner-list p { margin: 7px 0 0; line-height: 1.5; }
+@media (max-width: 1100px) { .scanner-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .scanner-header { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 600px) { .scanner-grid { grid-template-columns: minmax(0, 1fr); } .scanner-actions { width: 100%; } .scanner-actions button { flex: 1; } .scanner-view .panel { padding: 16px; } }
+/* The persistent footer's intrinsic width must not enlarge the scanner column. */
+.app:has(#scanner-view:not([hidden])) { grid-template-columns: minmax(0, 1fr); }
+.scanner-actions button { border: 1px solid #52698d; border-radius: 7px; background: #243957; color: #eef3ff; }

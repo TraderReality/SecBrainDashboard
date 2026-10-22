@@ -5,10 +5,11 @@
 <head>
 
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>SECBrain Watcher</title>
 
-<link rel="stylesheet" href="style.css?v=model-footer-1">
+<link rel="stylesheet" href="style.css?v=scanner-1">
 </head>
 
 
@@ -67,7 +68,7 @@
 
 <h3>WERKZEUGE</h3>
 
-<div class="menu">
+<div class="menu" data-view="scanner">
 <span class="menu-icon" aria-hidden="true">⌕</span><span class="menu-label">Scanner</span>
 </div>
 
@@ -357,6 +358,31 @@ KI-Pflege-Loop – 12 Stationen
 </button>
 </section>
 
+<section id="scanner-view" class="app-view scanner-view" hidden aria-labelledby="scanner-title">
+<header class="panel scanner-header">
+<div><span class="eyebrow">Vault-Prüfung</span><h1 id="scanner-title">Scanner</h1>
+<p>Dateiänderungen und Regelbefunde gegenüber dem letzten vollständigen Scan.</p></div>
+<div class="scanner-actions"><button id="scanner-refresh" type="button">Aktualisieren</button><button id="scanner-start" type="button">Vault scannen</button></div>
+</header>
+<p id="scanner-status" class="scanner-status" role="status" aria-live="polite" data-tone="warning">Noch nicht geprüft.</p>
+<section class="panel scanner-metadata" aria-label="Scanstand">
+<dl><div><dt>Letzte vollständige Vergleichsbasis</dt><dd id="scanner-baseline">Noch nicht geladen.</dd></div>
+<div><dt>Letzter Versuch</dt><dd id="scanner-attempt">Noch nicht geladen.</dd></div>
+<div><dt>Fortschritt</dt><dd id="scanner-progress">Noch nicht geladen.</dd></div></dl>
+<p id="scanner-report-summary">Noch kein Bericht geladen.</p>
+<a id="scanner-report" target="_blank" rel="noopener" hidden>JSON-Bericht öffnen</a>
+<p class="scanner-note">Momentaufnahme zum Prüfzeitpunkt. KI-Befunde sind begründete Hinweise; jede App-Übernahme prüft ihren konkreten Änderungssatz erneut. Externe Änderungen werden beim nächsten Scan sichtbar.</p>
+</section>
+<div class="scanner-grid">
+<section class="panel"><h2>Neu</h2><ul id="scanner-new" class="scanner-list"><li>Noch kein Bericht geladen.</li></ul></section>
+<section class="panel"><h2>Geändert</h2><ul id="scanner-changed" class="scanner-list"><li>Noch kein Bericht geladen.</li></ul></section>
+<section class="panel"><h2>Entfernt</h2><ul id="scanner-removed" class="scanner-list"><li>Noch kein Bericht geladen.</li></ul></section>
+<section class="panel"><h2>Technische Befunde</h2><ul id="scanner-technical" class="scanner-list"><li>Noch kein Bericht geladen.</li></ul></section>
+<section class="panel"><h2>KI-Befunde · verletzt</h2><ul id="scanner-violations" class="scanner-list"><li>Noch kein Bericht geladen.</li></ul></section>
+<section class="panel"><h2>KI-Befunde · unklar</h2><ul id="scanner-unclear" class="scanner-list"><li>Noch kein Bericht geladen.</li></ul></section>
+</div>
+</section>
+
 <section id="validation-view" class="app-view validation-view" hidden aria-labelledby="validation-title">
 <header class="panel validation-header">
 <div>
@@ -483,7 +509,7 @@ Modus: Readonly
 <script src="components/loop-renderer.js?v=core-autonomous-only-3"></script>
 <script src="components/vault-graph-explorer.js?v=graph-3d-indexer-1"></script>
 <script src="components/knowledge-radar.js?v=knowledge-radar-10"></script>
-<script src="app.js?v=model-footer-1"></script>
+<script src="app.js?v=scanner-1"></script>
 
 </body>
 
