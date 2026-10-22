@@ -87,6 +87,19 @@ class WatcherLoopOrchestratorTest(unittest.TestCase):
         self.assertIn("GELESENE VAULT-SEITE: 02 Projekte/SecBrain Watcher.md", context)
         self.assertIn("Tatsächlicher Projektinhalt", context)
 
+    def test_indexer_receives_active_vault_path(self):
+        (self.vault / "09 Werkzeuge/indexer.py").write_text(
+            "import os\nfrom pathlib import Path\n"
+            "assert Path(os.environ['SECBRAIN_VAULT']).resolve() == Path(__file__).resolve().parents[1]\n"
+            "assert os.environ['SECBRAIN_QMD_EMBED'] == '0'\n",
+            encoding="utf-8",
+        )
+        executor = WatcherLoopOrchestrator(
+            WatcherLoopRuntime(), lambda **_: {}, str(self.vault)
+        )._executor
+        with patch.dict(os.environ, {"SECBRAIN_VAULT": "/home/secbrain/Dokumente/SecBrain"}):
+            self.assertTrue(executor._run_indexer()["ok"])
+
     def test_pending_proposal_does_not_dirty_git_vault(self):
         subprocess.run(["git", "init", "-q", str(self.vault)], check=True)
         subprocess.run(["git", "-C", str(self.vault), "add", "-A"], check=True)

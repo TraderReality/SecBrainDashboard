@@ -279,7 +279,8 @@ class VaultLoopExecutor:
         if not indexer.is_file():
             raise RuntimeError(f"Indexer fehlt: {indexer}")
         env = dict(os.environ)
-        env["SECBRAIN_QMD_EMBED"] = "1"
+        env["SECBRAIN_VAULT"] = str(self.vault)
+        env["SECBRAIN_QMD_EMBED"] = "0"
         process = subprocess.run(
             [sys.executable, str(indexer)], capture_output=True, text=True, timeout=600, env=env
         )
