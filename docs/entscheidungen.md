@@ -2,6 +2,20 @@
 
 Kurze Einträge: Datum, Entscheidung, Grund.
 
+## 2026-10-22: Freigabe-Fehler mit begrenztem Commit und Rückweg behandeln
+
+Git-Autor und Committer werden vor einem Watcher-Lauf geprüft. Ein Lauf stagiert
+und committet nur seine eigenen Pfade; bereits gestagte fremde Änderungen
+blockieren ihn. Die Inhaltsbytes werden vor der Mutation in einem dauerhaft
+geschriebenen Journal im getrennten State gesichert. Ein Git-Commit entsteht
+aus genau den geprüften Bytes und literalen Dateipfaden in einem temporären
+Index; der Git-HEAD wird nur bei unverändertem Ausgangs-HEAD gesetzt.
+Bei Fehler oder Prozessabbruch stellt der nächste Start eigene Vault-Dateien
+kontrolliert wieder her. Fremd geänderte oder gestagte Laufdateien bleiben
+bei einem Konflikt erhalten und erfordern manuelle Prüfung. Das gilt auch
+für den Wissensradar-Freigabepfad. Vor einer möglichen Indexänderung wird
+QMD als unsynchron markiert und vor dem nächsten Lauf neu aufgebaut.
+
 ## 2026-10-22: Indexer auf den aktiven Vault festlegen
 
 Der Watcher setzt beim Start des Vault-Indexers `SECBRAIN_VAULT` auf seinen
