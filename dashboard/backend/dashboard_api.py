@@ -579,6 +579,20 @@ def watcher_loop_status():
     return watcher_status()
 
 
+@app.get("/api/validation/last")
+def last_run_validation():
+    """Show durable evidence for the last successfully approved run."""
+    return watcher_orchestrator.validation.status()
+
+
+@app.post("/api/validation/last/recheck")
+def recheck_last_run_validation():
+    """Compare the current Vault and retrieval status without changing them."""
+    if watcher_orchestrator.is_active():
+        raise HTTPException(status_code=409, detail="Ein Watcher-Lauf ist aktiv. Bitte später erneut prüfen.")
+    return watcher_orchestrator.validation.recheck(retrieval_status())
+
+
 @app.post("/api/watcher-loop/autonomous/start")
 def watcher_loop_autonomous_start(payload: dict):
 

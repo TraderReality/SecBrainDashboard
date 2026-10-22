@@ -1,17 +1,25 @@
 # Übergabe
 
-## Validierung des letzten Laufs (Entwurf vom 22.10.2026)
+## Validierung des letzten Laufs (Feature-Branch vom 22.10.2026)
 
-Der Nutzer hat den Entwurf für eine bedienbare Validierung des letzten
-erfolgreichen Inbox- oder Wissensradar-Laufs bestätigt: gespeicherten Nachweis
-anzeigen und Dateien, Commit, Indexer-Export sowie QMD auf Knopfdruck erneut
-lesend prüfen. Die ausgearbeitete Spezifikation liegt unter
-`docs/superpowers/specs/2026-10-22-letzten-lauf-validieren-design.md` auf dem
-Feature-Branch `codex/validation-last-run` und wurde vom Nutzer freigegeben.
-Der Umsetzungsplan steht unter
-`docs/superpowers/plans/2026-10-22-letzten-lauf-validieren.md`. Nächster Schritt
-ist die Prüfung des Plans und Wahl der Ausführungsmethode durch den Nutzer.
-Produktcode und NAS-Main wurden hierfür noch nicht geändert.
+Der freigegebene Entwurf und Plan sind auf dem isolierten Feature-Branch
+`codex/validation-last-run-impl` umgesetzt. Nach einem erfolgreichen Inbox-
+oder Wissensradar-Lauf speichert der Watcher einen versionierten Prüfnachweis
+im getrennten State. Ein dauerhafter Übernahmemarker verhindert, dass nach
+einem Prozessabbruch ein älterer Nachweis irreführend grün erscheint. Die neue
+Ansicht „Validierung“ zeigt den Lauf und prüft auf Knopfdruck Dateien, lokalen
+Vault-Commit, Indexer-Export und aktuellen QMD-Status ausschließlich lesend.
+Vor Einführung der Funktion abgeschlossene Läufe haben keinen nachträglich
+erfundenen Nachweis.
+
+Lokal bestanden 100 Backend-Tests und 3 Subtests, alle Frontend-JavaScript-
+Syntaxprüfungen und `git diff --check`. Im isolierten lokalen Browser wurden
+der leere Zustand, ein gespeicherter Lauf, eine nachträglich geänderte
+Archivdatei, nicht verfügbares QMD und die schmale Ansicht geprüft. NAS-Main
+wurde nicht geändert. Ausstehend sind Gesamt-Review, Pull Request und ein
+separater Dev-/Main-Rollout nach den bestehenden Freigabeschritten. Scanner
+und Reports bleiben weiterhin inerte UI-Einträge (P2); das iPhone-Zertifikat
+bleibt zurückgestellt.
 
 ## Main-Rollout von PR #11 am 22.10.2026 (Schritt 5 abgeschlossen)
 
