@@ -1,5 +1,49 @@
 # Übergabe
 
+## NAS-Main-Rollout von Scanner und Validierung am 22.10.2026
+
+Der Stand aus PR #14 (`codex/vault-scanner-design`, Commit `16f8d84`, auf
+PR #13 aufgebaut) läuft auf NAS-Main als `secbrain-dashboard:16f8d84`
+(Image-ID `sha256:a4d76bb4b82009000c289144b3ce38128700dae1cc4d84c8be3e2648db6e50d9`).
+Quelle: `/volume1/docker/secbrain/secbrain-main/watcher-main-16f8d84`.
+Die bisherigen Main-Vault- und State-Mounts sowie der TLS-CA-Mount bleiben aktiv.
+PR #13 und PR #14 waren beim Rollout noch nicht gemergt.
+
+Vor der Umschaltung wurden Main und HTTPS-Proxy gestoppt und Vault, State,
+TLS-Daten sowie der vorige Quellbaum konsistent unter
+`/volume1/docker/secbrain/secbrain-main/backups/2026-10-22-pre-16f8d84/main-consistent.tar.gz`
+gesichert. Das Archiv enthält 809 Einträge, hat Modus 0600, bestand den
+Gzip-Lesetest und hat SHA-256
+`7559cbab382ca309c0e067a1fe92759e13b31af5146b6eed7c54b7c62a72b84b`.
+Das vorige Image `a02ee24` ist zusätzlich als
+`secbrain-dashboard:rollback-pre-16f8d84` markiert. Die CA im Archiv ist
+bytegleich mit der aktiven CA; ihr öffentlicher Fingerabdruck blieb
+`D4:25:0B:54:9A:01:36:A9:10:E3:2B:87:A9:27:54:58:72:5B:2F:CE:2A:9D:5C:39:AF:DD:FC:B7:53:C7:A2:40`.
+
+Isoliert mit Kopien von Vault und State: Health 200, Scanner ohne Anmeldung
+401 und mit Anmeldung 200, QMD `available: true`. Main nach Umschaltung:
+Container `healthy`, 0 Neustarts, HTTPS-Zertifikatsprüfung erfolgreich,
+Health 200, Scanner ohne Anmeldung 401 und mit Anmeldung 200; Validierung,
+Status, QMD und Oberfläche mit Anmeldung 200. QMD 2.8.3 meldet Collection
+`secbrain-main`; Main-Vault-HEAD blieb `54ba3ba` und Git-Status leer.
+Das getrennte NAS-Dev blieb `healthy`. Die isolierte Testkopie wurde entfernt.
+
+**Betriebsgrenze:** Die bestehende Vault enthält unter `07 Anhänge/` eine PDF
+und an mehreren Stellen `.gitkeep`-Dateien. Die vollständige KI-Regelprüfung kann diese
+Bestandsdateien nicht bewerten. Deshalb sperrt der neue Guard derzeit auch
+inhaltlich unauffällige App-Übernahmen mit HTTP 409. Ein isolierter und ein
+produktiver Test-Upload wurden so ohne neue Vault-Datei abgewiesen. Der
+Scanner wurde auf Main nicht gestartet; seine Ansicht zeigt zunächst `idle`
+und `unklar`. Der vorhandene Vault-Indexer
+`09 Werkzeuge/indexer.py` (SHA-256 `942b64b09be886062102843d3633e09eced2bbc94c45f0bff3519ea5aa66312d`)
+bleibt aktiv; der Paket-Fallback wird auf Main daher nicht ausgeführt.
+
+Rückweg bei einem App-Fehler: Main und Proxy stoppen, den vorigen Compose-
+Quellbaum `watcher-main-a02ee24` mit dem markierten Image wieder starten und
+danach Health, HTTPS/Auth und QMD prüfen. Vault und State nur bei tatsächlicher
+Beschädigung aus dem konsistenten Archiv wiederherstellen, damit spätere
+Nutzerdaten erhalten bleiben. Die TLS-CA nicht neu erzeugen.
+
 ## Vault-Scanner mit Regelprüfung (Feature-Branch vom 22.10.2026)
 
 Die Scanner-Ansicht ist an die authentisierten Status-, Start- und Bericht-APIs
@@ -27,11 +71,11 @@ liefern keine absolute semantische Garantie; externe Schreibprogramme können
 die Momentaufnahme nach dem Prüfzeitpunkt verändern.
 
 Abhängigkeit: PR #13 („Validierung des letzten Laufs“) ist Basis des Branches.
-Noch kein Merge, Push oder Rollout durch diese Teilaufgabe; NAS-Main blieb
-unangetastet. Verifikationsbefehle, Ergebnisse und isolierte Browserproben stehen
+Die Implementierungsprüfung erfolgte vor dem oben dokumentierten Rollout.
+Verifikationsbefehle, Ergebnisse und isolierte Browserproben stehen
 in `.superpowers/sdd/2026-10-22-vault-scanner-regelpruefung/task-8-report.md`.
 
-**Indexer-Fallback umgesetzt, noch nicht ausgerollt:** Fehlt die aktive Vault-Datei
+**Indexer-Fallback im ausgerollten App-Image:** Fehlt die aktive Vault-Datei
 `09 Werkzeuge/indexer.py`, startet der Watcher jetzt den Paketbestandteil
 `dashboard/backend/loop/vault_indexer.py`. Ein vorhandenes Vault-Skript behält
 Vorrang; sein Fehler löst keinen stillen Wechsel aus. Es wird kein Skript in die
@@ -56,7 +100,7 @@ abweichender Maske sind durch diese QMD-Maske nicht ausgeschlossen. Externe
 QMD-Konfiguration und vorhandene Vault-Indexer werden nicht umgeschrieben;
 deren Verhalten muss bei einer Bereitstellung separat geprüft werden.
 Nachweis: `.superpowers/sdd/2026-10-22-vault-scanner-regelpruefung/indexer-fallback-report.md`.
-NAS-Main wurde durch diese Änderung nicht geprüft oder verändert.
+Der aktive NAS-Main-Indexer ist vorhanden; der Fallback-Pfad wurde dort nicht ausgeführt.
 
 Der Paket-Indexer liest Quellen über verankerte Verzeichnisdeskriptoren ohne
 Symlink-Folgen. Identität und Bytes werden vor und nach dem Export erneut
