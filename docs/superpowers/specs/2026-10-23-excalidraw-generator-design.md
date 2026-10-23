@@ -2,7 +2,7 @@
 
 **Stand:** 23.10.2026
 
-**Status:** Entwurf zur Prüfung
+**Status:** Vom Nutzer am 23.10.2026 freigegeben; Umsetzungsplan erstellt
 
 ## Ziel und Grenze
 
