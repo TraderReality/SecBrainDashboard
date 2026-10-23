@@ -7,6 +7,8 @@ einen privaten FastAPI-Worker, Schema-Prüfung und atomare Ausgabe unter der
 NAS-Work-Freigabe. Main und Dev sind in Compose getrennt. Der normale Chat
 schreibt keine Diagrammdatei. NAS-Main wurde für diese Funktion noch nicht
 geändert.
+Der getrennte Main-Vorschlag steht unter
+`docs/superpowers/plans/2026-10-23-excalidraw-main-rollout.md`.
 
 Der isolierte NAS-Dev-Lauf nutzte den Compose-Namen
 `secbrain-excalidraw-candidate` und eine eigene Vault-Kopie, eigenen State,
