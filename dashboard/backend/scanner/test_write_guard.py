@@ -135,10 +135,11 @@ def test_nonpassing_model_blocks_even_with_approval(environment, status):
 
 @pytest.mark.parametrize('failure', ['missing-agents', 'empty-agents', 'missing-model',
                                      'model-exception', 'unavailable-model', 'unconfirmed-model',
-                                     'binary', 'oversized', 'invalid-utf8'])
+                                     'binary', 'oversized', 'invalid-utf8', 'invalid-planned'])
 def test_incomplete_evaluation_fails_closed_without_leaking_content(environment, failure):
     vault, _ = environment
     chat, model = passing_chat, lambda: 'local'
+    changes, approval = [create()], None
     if failure == 'missing-agents':
         (vault / 'AGENTS.md').unlink()
     elif failure == 'empty-agents':
@@ -156,13 +157,35 @@ def test_incomplete_evaluation_fails_closed_without_leaking_content(environment,
             response = passing_chat(messages, model)
             del response['done']
             return response
+    elif failure == 'invalid-planned':
+        changes = [create(content=b'PRIVATE \xff')]
     else:
+        # A touched preimage must be judged in full; it cannot be skipped.
         filename = 'attachment.bin' if failure == 'binary' else 'unreadable.md'
-        (vault / filename).write_bytes(b'\xff' if failure == 'invalid-utf8' else b'x' * 70_000)
+        preimage = b'\xff' if failure in {'invalid-utf8', 'binary'} else b'x' * 70_000
+        (vault / filename).write_bytes(preimage)
+        changes, approval = [replacement(b'new', filename, preimage)], 'RUN-1'
     with pytest.raises(RuleBlocked) as error:
-        with guard_for(environment, chat, model).authorize([create()], None):
+        with guard_for(environment, chat, model).authorize(changes, approval):
             pytest.fail('incomplete check permitted write')
     assert 'PRIVATE' not in str(error.value)
+
+
+def test_unchanged_unreviewable_bestand_neither_blocks_nor_reaches_model(environment):
+    vault, _ = environment
+    (vault / '07 Anhänge').mkdir()
+    (vault / '07 Anhänge/scan.pdf').write_bytes(b'%PDF-1.7 PRIVATE')
+    (vault / '07 Anhänge/.gitkeep').write_bytes(b'')
+    (vault / 'large.md').write_bytes(b'PRIVATE ' * 10_000)
+    (vault / 'latin1.md').write_bytes(b'PRIVATE \xff')
+    payloads = []
+    def chat(messages, model):
+        payloads.append(json.loads(messages[-1]['content']))
+        return passing_chat(messages, model)
+    with guard_for(environment, chat).authorize([create()], None):
+        (vault / 'new.md').write_bytes(b'new note')
+    assert [[s['path'] for s in p['subjects']] for p in payloads] == [['new.md']]
+    assert 'PRIVATE' not in json.dumps(payloads) and 'old note' not in json.dumps(payloads)
 
 
 @pytest.mark.parametrize('target', ['AGENTS.md', 'note.md', 'new.md', 'unrelated.md'])
@@ -199,7 +222,7 @@ def test_explicit_correction_can_remove_existing_violation(environment):
         pass
 
 
-@pytest.mark.parametrize('changes,approval', [([create()], 'RUN-1'), ([replacement()], None),
+@pytest.mark.parametrize('changes,approval', [([replacement()], None),
     ([replacement(b'still invalid')], 'CORRECTION-1')])
 def test_existing_violation_cannot_be_bypassed(environment, changes, approval):
     blocked(guard_for(environment, corrective_chat), changes, approval)
@@ -218,19 +241,17 @@ def test_agents_edit_must_pass_old_and_proposed_rules(environment, rule_to_rejec
              b'Keep every note sourced.\n')], 'RULES-1')
 
 
-def test_agents_edit_rechecks_unchanged_content_against_new_rules(environment):
+def test_agents_edit_judges_only_the_change_against_old_and_new_rules(environment):
+    # Re-checking the unchanged Bestand under new rules is the next scan's job.
+    payloads = []
     def chat(messages, model):
-        response = passing_chat(messages, model)
-        payload = json.loads(messages[-1]['content'])
-        if payload['agents'] == 'New rules.\n':
-            rows = json.loads(response['message']['content'])
-            for row in rows['findings']:
-                if row['path'] == 'note.md':
-                    row['status'] = 'verletzt'
-            response['message']['content'] = json.dumps(rows)
-        return response
-    blocked(guard_for(environment, chat), [replacement(b'New rules.\n', 'AGENTS.md',
-             b'Keep every note sourced.\n')], 'RULES-1')
+        payloads.append(json.loads(messages[-1]['content']))
+        return passing_chat(messages, model)
+    with guard_for(environment, chat).authorize([replacement(b'New rules.\n', 'AGENTS.md',
+            b'Keep every note sourced.\n')], 'RULES-1'):
+        pass
+    assert [p['agents'] for p in payloads] == ['Keep every note sourced.\n', 'New rules.\n']
+    assert all([s['path'] for s in p['subjects']] == ['AGENTS.md'] for p in payloads)
 
 
 def test_deleting_rule_source_is_blocked(environment):

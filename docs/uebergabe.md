@@ -1,5 +1,39 @@
 # Übergabe
 
+## Schreib-Guard prüft nur noch geplante Änderungen (Feature-Branch vom 23.10.2026)
+
+Ursache der Main-Betriebsgrenze: Der Guard las bei jeder App-Übernahme den
+gesamten Vault-Bestand und schickte ihn in einem einzigen Modellaufruf zur
+Regelprüfung. Die PDF unter `07 Anhänge/` und die `.gitkeep`-Dateien (ohne
+Suffix, daher `binary`) sind nicht lesbar und sperrten mit HTTP 409. Bei rund
+500 Main-Dateien hätte zudem das Modellbudget jede Übernahme gesperrt.
+
+Entscheidung des Nutzers (siehe `docs/entscheidungen.md`): Der Guard bewertet
+per KI nur noch die geplanten Änderungen (Vorher/Nachher) gegen die aktuelle
+und bei einer Regeländerung zusätzlich gegen die vorgeschlagene `AGENTS.md`.
+Gelesen werden nur `AGENTS.md` und berührte Vorher-Dateien; eine berührte
+unprüfbare Datei sperrt weiterhin. Unveränderte Bestandsdateien, auch binäre,
+sperren nicht mehr und gelangen nicht ins Modell. Unverändert bleiben:
+Inventar-Issues (Symlinks, Sonderdateien) sperren, Ersetzen/Löschen braucht
+Freigabe und Vorher-Hash, neue Inhalte müssen lesbarer Text sein (echte
+PDF-/ZIP-Übernahmen bleiben 409), und jede Vault-Änderung während der
+Modellprüfung invalidiert die Momentaufnahme unter der Sperre.
+
+Folgen: Die Regelkonformität des Bestands belegt allein der Scanner-Bericht.
+Nach einer `AGENTS.md`-Änderung ist ein neuer Scannerlauf nötig, um den
+Bestand gegen die neuen Regeln zu prüfen. Eine bekannte Bestandsverletzung
+sperrt keine unbeteiligte Neuanlage mehr; ihre Korrektur braucht weiterhin
+Freigabe und ein regelkonformes Ergebnis.
+
+Lokal: `PYTHONPATH=dashboard/backend .venv/bin/python -m pytest -q` mit
+`438 passed, 11 subtests passed`. Ohne `PYTHONPATH` scheitern zehn
+Subprozess-Tests in `test_final_review_safety.py` am Import von `loop`
+(Umgebungsfrage, unabhängig von dieser Änderung). Die zwei neuen Regressionen
+scheitern gegen den alten Guard. Nicht geprüft: NAS-Dev und Main. Nächster
+Schritt: Pull Request, danach isolierter Dev-Test mit Kopie der Main-Vault
+(Upload muss trotz PDF/`.gitkeep` durchgehen) und Main-Rollout erst nach
+ausdrücklicher Freigabe mit neuer konsistenter Sicherung.
+
 ## NAS-Main-Rollout von Scanner und Validierung am 22.10.2026
 
 Der Stand aus PR #14 (`codex/vault-scanner-design`, Commit `16f8d84`, auf

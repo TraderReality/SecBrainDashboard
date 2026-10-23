@@ -3,7 +3,9 @@
 Every app writer for a Vault must use the same external ``state_dir``. Approval
 is an opaque, nonempty reference whose authenticity and binding to the exact
 change set belongs to the caller (for example, an approved watcher run). It
-never overrides a new violation or an incomplete assessment. The lock covers
+never overrides a new violation or an incomplete assessment. Only the planned
+changes are judged against AGENTS.md (old and, for a rule edit, proposed); the
+unchanged Bestand is covered by the scanner's reports. The lock covers
 cooperating app writers, not external editors; use exclusive creation / atomic
 replacement in the body as appropriate. This guard does not perform mutations.
 """
@@ -151,7 +153,7 @@ class VaultWriteGuard:
         return response
 
     def _prepare(self, changes, approval):
-        planned, approved = self._changes(changes, approval)
+        planned, _ = self._changes(changes, approval)
         if (self.state_dir.resolve().is_relative_to(self.vault.resolve())
                 or self.state_dir.is_relative_to(self.vault)):
             raise RuleBlocked('App-Sperre muss außerhalb der Vault liegen.')
@@ -167,24 +169,19 @@ class VaultWriteGuard:
             raise RuleBlocked('Aktuelle AGENTS.md fehlt.')
         for change in planned:
             self._check_destination(change, rows)
-        contents = {path: self._read(row) for path, row in rows.items()}
+        # Only the rule source and touched preimages are read and judged. The
+        # unchanged Bestand, including binary attachments, belongs to the
+        # scanner report; it neither blocks nor fills the model budget here.
+        touched = {'AGENTS.md'} | {change.relative_path for change in planned
+                                   if change.relative_path in rows}
+        contents = {path: self._read(rows[path]) for path in sorted(touched)}
         model = self.model()
         if not isinstance(model, str) or not model.strip():
             raise RuleBlocked('Für die Regelprüfung fehlt ein verfügbares Modell.')
         # Preserve the actual connector budget when wrapping its chat method.
         self.config = getattr(getattr(self.chat, '__self__', None), 'config', {})
-        baseline = [{'path': path, 'kind': rows[path]['kind'], 'content': body,
-                     'operation': 'Bestandsprüfung'} for path, body in contents.items()]
-        before = evaluate_rules(contents['AGENTS.md'], baseline, model, self._checked_chat)
-        if before['overall'] == 'unklar':
-            raise RuleBlocked('Aktueller Regelzustand ist nicht vollständig geklärt.')
-        violations = {row['path'] for row in before['findings'] if row['status'] == 'verletzt'}
-        changed_paths = {change.relative_path for change in planned
-                         if change.after_bytes != contents.get(change.relative_path)}
-        if violations and (not approved or not violations.issubset(changed_paths)):
-            raise RuleBlocked('Vorhandene Regelverletzung benötigt eine ausdrücklich freigegebene Korrektur.')
 
-        proposed = {subject['path']: dict(subject) for subject in baseline}
+        subjects = []
         agents_after = contents['AGENTS.md']
         for change in planned:
             path = change.relative_path
@@ -192,16 +189,16 @@ class VaultWriteGuard:
             # assess the operation as well as the resulting document state.
             before_text = _readable_text(contents[path]) if path in contents else None
             after_text = _readable_text(change.after_bytes) if change.after_bytes is not None else None
-            proposed[path] = {'path': path, 'kind': _kind(path), 'operation': change.operation,
-                              'content': json.dumps({'before': before_text, 'after': after_text},
-                                                    ensure_ascii=False)}
+            subjects.append({'path': path, 'kind': _kind(path), 'operation': change.operation,
+                             'content': json.dumps({'before': before_text, 'after': after_text},
+                                                   ensure_ascii=False)})
             if path == 'AGENTS.md':
                 agents_after = change.after_bytes
         sources = [contents['AGENTS.md']]
         if agents_after != sources[0]:
             sources.append(agents_after)
         for agents in sources:
-            after = evaluate_rules(agents, list(proposed.values()), model, self._checked_chat)
+            after = evaluate_rules(agents, subjects, model, self._checked_chat)
             if after['overall'] != 'erfüllt':
                 raise RuleBlocked('Geplante Änderung verletzt Regeln oder ist nicht vollständig geklärt.')
         return planned, inventory, signatures

@@ -188,3 +188,14 @@ in das Anwendungs-Repository oder nach GitHub übertragen. Im Vault ignoriert
 `.gitignore` Python-Zwischendateien; die lokale Git-Konfiguration ignoriert
 reine Dateimodusabweichungen auf Synology. So kann der Watcher einen sauberen
 Ausgangsstand vor jedem produktiven Loop-Lauf prüfen.
+
+## 2026-10-23: Schreib-Guard bewertet nur geplante Änderungen
+
+Der App-Schreib-Guard prüfte bisher bei jeder Übernahme den gesamten Bestand
+per KI. Unlesbare Bestandsdateien (PDF, `.gitkeep`) und das Modellbudget
+sperrten dadurch auf Main jede Übernahme. Künftig bewertet der Guard nur die
+geplanten Änderungen gegen die aktuelle und gegebenenfalls die vorgeschlagene
+`AGENTS.md`. Die Regelkonformität des unveränderten Bestands deckt der
+Scanner-Bericht ab; nach einer Regeländerung ist ein neuer Scan nötig.
+Freigabepflicht für Ersetzen/Löschen, Inventar-Issues und die
+Momentaufnahme-Prüfung unter der Schreibsperre bleiben unverändert.
