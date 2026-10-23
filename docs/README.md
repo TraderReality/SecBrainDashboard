@@ -21,6 +21,8 @@ liegt ausschließlich als Historie unter [archive/](archive/README.md).
 
 - Dashboard mit Vault-, Regel-, Loop- und Konfliktstatus
 - lokaler Ollama-Chat mit eigener, vom Loop und Radar getrennter Sitzung
+- `/excalidraw <Beschreibung>` erzeugt eine bearbeitbare Diagrammdatei auf der
+  NAS-Freigabe `Local/Work/excalidraw` (Dev: `excalidraw-dev`)
 - 12-Stationen-Pflege-Loop mit menschlicher Freigabe an Station 06
 - Wissensradar mit Lückenerkennung, kontrollierter Webrecherche,
   KI-Bewertung, Markdown-Diff, Pflegehistorie und Radar-Zeitplan
@@ -88,6 +90,7 @@ Anmeldung. Nur `/healthz` ist für den Container-Healthcheck öffentlich.
 | POST | `/api/dokulader/pdf` | PDF kontrolliert konvertieren |
 | GET | `/api/ollama/status` | Ollama- und Modellstatus |
 | GET/POST | `/api/ollama/config` | lokale Modellkonfiguration |
+| POST | `/api/excalidraw/generate` | explizite Diagrammanfrage; gibt SMB-Pfad zurück |
 | POST | `/api/ollama/chat` | unabhängige Chat-Sitzung |
 | GET | `/api/vault/retrieval/status` | gemeinsame read-only QMD-Retrieval-Schicht prüfen |
 | GET | `/api/stations/{station_id}/guardian-rule` | Stationsregel |

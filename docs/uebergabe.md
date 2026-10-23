@@ -1,5 +1,41 @@
 # Übergabe
 
+## Excalidraw-Generator (Feature-Branch vom 23.10.2026)
+
+Der Branch `codex/excalidraw-generator` ergänzt `/excalidraw` im Dashboard-Chat,
+einen privaten FastAPI-Worker, Schema-Prüfung und atomare Ausgabe unter der
+NAS-Work-Freigabe. Main und Dev sind in Compose getrennt. Der normale Chat
+schreibt keine Diagrammdatei. NAS-Main wurde für diese Funktion noch nicht
+geändert.
+Der getrennte Main-Vorschlag steht unter
+`docs/superpowers/plans/2026-10-23-excalidraw-main-rollout.md`.
+
+Der isolierte NAS-Dev-Lauf nutzte den Compose-Namen
+`secbrain-excalidraw-candidate` und eine eigene Vault-Kopie, eigenen State,
+geschützte Testzugänge und den Work-Ordner
+`/volume1/Local/Work/excalidraw-dev`. Die beiden Dev-Container liefen gesund
+ohne Neustart. Dashboard-Image:
+`sha256:bc773ce28c9d5dad2c362c9c7467460ec0aeb20c0c41560b3164b5d598e5e33b`;
+Worker-Image nach Abschlusskorrektur:
+`sha256:163e2691d75a1e8efccfedb551bd1cdf06b60c8950b6595ab589ad0b4e55b3e9`.
+
+Ein markierter authentisierter Dashboard-Aufruf mit dem lokalen Modell
+`smtek/Qwen3.8-27B:Q2_K_XL` lieferte HTTP 200 und die Datei
+`Local/Work/excalidraw-dev/diagram-20261023T022522Z-e5dd9e5b32e0.excalidraw`
+mit zwei Elementen. Die Datei ließ sich über den Mac-SMB-Mount als JSON lesen
+und erneut validieren. Worker- und SMB-Bytes hatten denselben SHA-256-Wert
+`2a955b930930dfd8168cd066c8133a3032e53429013c8751d5227400a2505668`.
+Der gewöhnliche Dashboard-Chat antwortete mit HTTP 200 und erhöhte die Zahl
+der Diagrammdateien nicht (1 vor/nach diesem Test). Der Generator hat keinen
+veröffentlichten Host-Port; eine Dashboard-Anfrage ohne Basic Auth erhielt 401.
+NAS-Main blieb unverändert. Der Dev-Testordner enthält drei markierte Dateien
+aus Vor- und Abschlussprobe. Der isolierte Dev-Stack bleibt für die Prüfung
+verfügbar; zum Rückweg genügt `docker compose ... down` für genau das
+Candidate-Projekt, ohne Main oder die Testdateien zu löschen.
+Lokal bestanden zuletzt `493 passed, 11 subtests passed` in 108,31 Sekunden;
+`node --check`, `git diff --check` und `docker compose --profile dev config
+--quiet` auf dem NAS waren ebenfalls erfolgreich.
+
 ## NAS-Main-Rollout von Scanner und Validierung am 22.10.2026
 
 Der Stand aus PR #14 (`codex/vault-scanner-design`, Commit `16f8d84`, auf

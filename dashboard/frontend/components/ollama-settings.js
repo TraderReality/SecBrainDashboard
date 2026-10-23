@@ -491,16 +491,42 @@ window.OllamaSettings = {
             return;
         }
 
+        const diagramCommand = /^\/excalidraw(?:\s|$)/.test(content);
+        const diagramPrompt = diagramCommand ? content.slice("/excalidraw".length).trim() : "";
+        if (diagramCommand && !diagramPrompt) {
+            this.chatMessages.push({ role: "assistant", content: "Bitte beschreibe das Diagramm nach /excalidraw.", diagram: true });
+            this.renderChatDock();
+            return;
+        }
+
         this.chatMessages.push({
             role: "user",
-            content
+            content,
+            diagram: diagramCommand
         });
 
         input.value = "";
         send.disabled = true;
-        send.textContent = "Antwort wird erstellt …";
+        send.textContent = diagramCommand ? "Diagramm wird im Work-Ordner gespeichert …" : "Antwort wird erstellt …";
 
         try {
+            if (diagramCommand) {
+                const response = await fetch("/api/excalidraw/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: diagramPrompt, model: this.config.model })
+                });
+                if (!response.ok) {
+                    throw new Error("Das Diagramm konnte nicht erstellt werden. Bitte prüfe Modell und Work-Freigabe.");
+                }
+                const result = await response.json();
+                this.chatMessages.push({
+                    role: "assistant",
+                    content: `Diagramm gespeichert: ${result.relative_path} (${result.element_count} Elemente, Modell: ${result.model}).`,
+                    diagram: true
+                });
+                return;
+            }
             const response = await fetch(
                 "/api/ollama/chat",
                 {
@@ -510,7 +536,7 @@ window.OllamaSettings = {
                     },
                     body: JSON.stringify({
                         model: this.config.model,
-                        messages: this.chatMessages
+                        messages: this.chatMessages.filter(message => !message.diagram)
                     })
                 }
             );
@@ -531,11 +557,12 @@ window.OllamaSettings = {
         } catch (error) {
             this.chatMessages.push({
                 role: "assistant",
-                content: "⚠️ " + error.message
+                content: "⚠️ " + error.message,
+                diagram: diagramCommand
             });
+        } finally {
+            this.renderChatDock();
         }
-
-        this.renderChatDock();
 
     },
 
@@ -1130,7 +1157,8 @@ window.OllamaSettings = {
                 </div>
                 <div id="ollama-chat-history" class="ollama-chat-history">${history}</div>
                 <label for="ollama-chat-input">Nachricht</label>
-                <textarea id="ollama-chat-input" rows="3" placeholder="Frage an ${activeModel || "ein Ollama-Modell"}" ${activeModel ? "" : "disabled"}></textarea>
+                <p class="ollama-chat-write-notice">Nur /excalidraw &lt;Beschreibung&gt; schreibt eine Diagrammdatei auf Local/Work.</p>
+                <textarea id="ollama-chat-input" rows="3" placeholder="Frage an ${this.escapeHtml(activeModel || "ein Ollama-Modell")}" ${activeModel ? "" : "disabled"}></textarea>
                 <button id="ollama-chat-send" type="button" ${activeModel ? "" : "disabled"}>Nachricht senden</button>
             </section>
         `;

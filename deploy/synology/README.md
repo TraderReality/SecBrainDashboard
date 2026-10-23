@@ -39,6 +39,40 @@ werden:
 - `SECBRAIN_DEV_HTTP_USER`, `SECBRAIN_DEV_HTTP_PASSWORD`
 - `SECBRAIN_TLS_DATA` (geschützter, dauerhaft gesicherter NAS-Pfad für die
   lokale Zertifizierungsstelle)
+- `SECBRAIN_MAIN_EXCALIDRAW_TOKEN`, `SECBRAIN_DEV_EXCALIDRAW_TOKEN` (verschiedene
+  zufällige Dienst-Tokens)
+- `SECBRAIN_MAIN_EXCALIDRAW_DIR=/volume1/Local/Work/excalidraw`
+- `SECBRAIN_DEV_EXCALIDRAW_DIR=/volume1/Local/Work/excalidraw-dev`
+
+## Excalidraw-Generator
+
+Im Dashboard-Chat schreibt nur `/excalidraw <Beschreibung>` eine Datei. Der
+Generator prüft die JSON-Szene und erzeugt einen eigenen Dateinamen. Main und
+Dev haben getrennte Worker, Tokens und Work-Ordner. Beide Worker sind nur im
+Compose-Netz erreichbar; es gibt keinen Host-Port. Der offizielle statische
+Excalidraw-Container bleibt gestoppt, weil er keine KI-Anfragen verarbeitet.
+
+Die Zielordner vor dem Start auf dem NAS anlegen und dem konfigurierten
+`SECBRAIN_UID:SECBRAIN_GID` Schreibrechte geben. Der Container sieht sie unter
+`/work/excalidraw`; SMB-Clients finden dieselben Dateien unter
+`Local/Work/excalidraw` beziehungsweise `Local/Work/excalidraw-dev`. Es werden
+keine SMB-Zugangsdaten im Container gebraucht. Fehlende Ordner dürfen nicht
+durch einen Docker-Bind-Mount unbemerkt als neue Host-Verzeichnisse entstehen.
+
+Zuerst nur Dev bauen und starten:
+
+```bash
+docker compose --env-file "$config" --profile dev config --quiet
+docker compose --env-file "$config" --profile dev build dev excalidraw-dev
+docker compose --env-file "$config" --profile dev up -d dev excalidraw-dev
+docker compose --env-file "$config" --profile dev ps
+```
+
+Nach einer authentisierten Dashboard-Anfrage die erzeugte Datei auf dem NAS
+als JSON lesen und ihre Bytes über die SMB-Freigabe vergleichen. Der normale
+Chat darf keine Datei erzeugen. Bei Fehlern `excalidraw-dev` und gegebenenfalls
+das aktualisierte Dev-Dashboard stoppen; Dev-Ausgabedateien bleiben zur Prüfung
+erhalten. Main erst nach Review, Sicherung und separater Freigabe umstellen.
 
 Compose setzt `SECBRAIN_AUTH_REQUIRED=1`. Die App startet bei fehlenden
 Zugangsdaten nicht. Browser zeigen die HTTP-Basic-Anmeldung automatisch an;
