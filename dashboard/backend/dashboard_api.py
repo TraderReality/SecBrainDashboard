@@ -25,6 +25,7 @@ from scanner.report_store import ReportStoreError
 from scanner.write_guard import PlannedChange, RuleBlocked, VaultWriteGuard
 from scanner.inventory import _open_root, _FILE_FLAGS
 from access_control import BasicAuthMiddleware, validate_auth_configuration
+from excalidraw_client import WorkerError, request_diagram
 from runtime.runtime_manager import RuntimeManager
 from guardian_rules import chat_context, for_station, free_chat_context
 from dokulader_service import (import_package, import_pdf, import_urls, _atomic_new_file,
@@ -533,6 +534,25 @@ def agents_md_write(payload: dict):
 
 # ============================================================
 # OLLAMA STATUS
+# ============================================================
+
+@app.post("/api/excalidraw/generate")
+def excalidraw_generate(payload: dict):
+    prompt = payload.get("prompt")
+    if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
+        raise HTTPException(status_code=422, detail="invalid_prompt")
+    model = payload.get("model") or runtime.ollama.get_config().get("model") or ""
+    if not isinstance(model, str) or not model.strip() or len(model) > 100:
+        raise HTTPException(status_code=422, detail="missing_model")
+    try:
+        return request_diagram(prompt, model)
+    except WorkerError as exc:
+        status = 422 if exc.code == "invalid_scene" else 503
+        if exc.code == "worker_busy":
+            status = 429
+        raise HTTPException(status_code=status, detail=exc.code) from exc
+
+
 # ============================================================
 
 @app.get("/api/ollama/status")

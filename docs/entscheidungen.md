@@ -2,6 +2,17 @@
 
 Kurze Einträge: Datum, Entscheidung, Grund.
 
+## 2026-10-23: Excalidraw-Dateien über getrennten lokalen Worker
+
+Nur der ausdrückliche Dashboard-Befehl `/excalidraw` darf eine Datei erzeugen.
+Ein interner, token-geschützter Worker ruft das lokale Ollama-Modell auf,
+validiert die begrenzte Excalidraw-Szene und veröffentlicht sie ohne Überschreiben
+unter `Local/Work/excalidraw`. Er erhält allein den Work-Mount, nicht Vault oder
+State. Main und Dev verwenden getrennte Worker, Tokens und Verzeichnisse.
+Der statische Excalidraw-Webclient wird dafür nicht gestartet. Die Freigabe
+umfasst die Implementierung und einen isolierten Dev-Test; Main wird erst nach
+Review, Sicherung und gesonderter Rollout-Freigabe geändert.
+
 ## 2026-10-22: Vault-Scanner und gemeinsame Schreibprüfung
 
 Der Scanner vergleicht SHA-256-Inventare mit dem letzten vollständig geprüften

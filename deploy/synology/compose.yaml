@@ -20,6 +20,28 @@ x-watcher-common: &watcher-common
     start_period: 60s
     retries: 3
 
+x-excalidraw-common: &excalidraw-common
+  build:
+    context: ../..
+    dockerfile: deploy/synology/Dockerfile.excalidraw-generator
+  image: "secbrain-excalidraw:${SECBRAIN_IMAGE_TAG:-dev}"
+  restart: unless-stopped
+  read_only: true
+  mem_limit: 512m
+  cpu_shares: 256
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:size=16m,mode=1777
+  healthcheck:
+    test: ["CMD", "python", "-c", "from urllib.request import urlopen; r=urlopen('http://127.0.0.1:8090/healthz',timeout=3); raise SystemExit(0 if r.status==200 else 1)"]
+    interval: 30s
+    timeout: 5s
+    start_period: 30s
+    retries: 3
+
 services:
   main:
     <<: *watcher-common
@@ -37,6 +59,8 @@ services:
       SECBRAIN_QMD_BINARY: /usr/local/bin/qmd
       SECBRAIN_QMD_COLLECTION: "${SECBRAIN_MAIN_QMD_COLLECTION:-secbrain-main}"
       SECBRAIN_AUTH_REQUIRED: "1"
+      SECBRAIN_EXCALIDRAW_WORKER_URL: "http://excalidraw-main:8090"
+      SECBRAIN_EXCALIDRAW_TOKEN: "${SECBRAIN_MAIN_EXCALIDRAW_TOKEN:?SECBRAIN_MAIN_EXCALIDRAW_TOKEN is required}"
       SECBRAIN_HTTP_USER: "${SECBRAIN_MAIN_HTTP_USER:?SECBRAIN_MAIN_HTTP_USER is required}"
       SECBRAIN_HTTP_PASSWORD: "${SECBRAIN_MAIN_HTTP_PASSWORD:?SECBRAIN_MAIN_HTTP_PASSWORD is required}"
     ports:
@@ -62,6 +86,8 @@ services:
       SECBRAIN_QMD_BINARY: /usr/local/bin/qmd
       SECBRAIN_QMD_COLLECTION: "${SECBRAIN_DEV_QMD_COLLECTION:-secbrain-dev}"
       SECBRAIN_AUTH_REQUIRED: "1"
+      SECBRAIN_EXCALIDRAW_WORKER_URL: "http://excalidraw-dev:8090"
+      SECBRAIN_EXCALIDRAW_TOKEN: "${SECBRAIN_DEV_EXCALIDRAW_TOKEN:?SECBRAIN_DEV_EXCALIDRAW_TOKEN is required}"
       SECBRAIN_HTTP_USER: "${SECBRAIN_DEV_HTTP_USER:?SECBRAIN_DEV_HTTP_USER is required}"
       SECBRAIN_HTTP_PASSWORD: "${SECBRAIN_DEV_HTTP_PASSWORD:?SECBRAIN_DEV_HTTP_PASSWORD is required}"
     ports:
@@ -70,6 +96,38 @@ services:
       - "${SECBRAIN_DEV_VAULT}:/vault"
       - "../..:/source:ro"
       - "${SECBRAIN_DEV_STATE}:/state"
+
+  excalidraw-main:
+    <<: *excalidraw-common
+    profiles: ["main"]
+    user: "${SECBRAIN_UID}:${SECBRAIN_GID}"
+    environment:
+      SECBRAIN_EXCALIDRAW_TOKEN: "${SECBRAIN_MAIN_EXCALIDRAW_TOKEN:?SECBRAIN_MAIN_EXCALIDRAW_TOKEN is required}"
+      SECBRAIN_EXCALIDRAW_OLLAMA_URL: "${SECBRAIN_OLLAMA_URL}"
+      SECBRAIN_EXCALIDRAW_OUTPUT_DIR: /work/excalidraw
+      SECBRAIN_EXCALIDRAW_SHARE_PREFIX: Local/Work/excalidraw
+    volumes:
+      - type: bind
+        source: "${SECBRAIN_MAIN_EXCALIDRAW_DIR:?SECBRAIN_MAIN_EXCALIDRAW_DIR is required}"
+        target: /work/excalidraw
+        bind:
+          create_host_path: false
+
+  excalidraw-dev:
+    <<: *excalidraw-common
+    profiles: ["dev"]
+    user: "${SECBRAIN_UID}:${SECBRAIN_GID}"
+    environment:
+      SECBRAIN_EXCALIDRAW_TOKEN: "${SECBRAIN_DEV_EXCALIDRAW_TOKEN:?SECBRAIN_DEV_EXCALIDRAW_TOKEN is required}"
+      SECBRAIN_EXCALIDRAW_OLLAMA_URL: "${SECBRAIN_OLLAMA_URL}"
+      SECBRAIN_EXCALIDRAW_OUTPUT_DIR: /work/excalidraw
+      SECBRAIN_EXCALIDRAW_SHARE_PREFIX: Local/Work/excalidraw-dev
+    volumes:
+      - type: bind
+        source: "${SECBRAIN_DEV_EXCALIDRAW_DIR:?SECBRAIN_DEV_EXCALIDRAW_DIR is required}"
+        target: /work/excalidraw
+        bind:
+          create_host_path: false
 
   https-main:
     image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
